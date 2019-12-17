@@ -1,11 +1,28 @@
+import sys
+import argparse
 import numpy as np
 import cv2
 import time
 
-#url = "http:/localhost:8082/?action=stream"
+parser = argparse.ArgumentParser(prog=sys.argv[0], description='detect object with webcam & opencv', allow_abbrev=False)
+parser.add_argument('--width',type=int, dest='width', required=True)
+parser.add_argument('--height',type=int, dest='height', required=True)
+parser.add_argument('--FPS',type=int, dest='FPS', required=True)
+parser.add_argument('--limit-buffer',dest='limitBuffer', action='store_true')
+args = parser.parse_args()
+
+width=args.width
+height=args.height
+FPS=args.FPS
+limitBuffer=args.limitBuffer
 
 cap = cv2.VideoCapture(0)
-#cap.set(cv2.CAP_PROP_BUFFERSIZE,1)
+cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+cap.set(cv2.CAP_PROP_FPS, FPS)
+if limitBuffer:
+    cap.set(cv2.CAP_PROP_BUFFERSIZE,1)
 
 MAX_FEATURES = 500
 orb = cv2.ORB_create(MAX_FEATURES)

@@ -1,13 +1,31 @@
-
+import sys
+import argparse
 import cv2
 import numpy as np
 
-url = "http:/localhost:8082/?action=stream"
+parser = argparse.ArgumentParser(prog=sys.argv[0], description='detect object with webcam & opencv', allow_abbrev=False)
+parser.add_argument('--width',type=int, dest='width', required=True)
+parser.add_argument('--height',type=int, dest='height', required=True)
+parser.add_argument('--FPS',type=int, dest='FPS', required=True)
+parser.add_argument('--limit-buffer',dest='limitBuffer', action='store_true')
+args = parser.parse_args()
+
+width=args.width
+height=args.height
+FPS=args.FPS
+limitBuffer=args.limitBuffer
+
+cap = cv2.VideoCapture(0)
+cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+cap.set(cv2.CAP_PROP_FPS, FPS)
+if limitBuffer:
+    cap.set(cv2.CAP_PROP_BUFFERSIZE,1)
+
+            
 face_xml = '/home/devchu/.virtualenvs/cv/lib/python3.7/site-packages/cv2/data/haarcascade_frontalface_default.xml'
-
 face_cascade = cv2.CascadeClassifier(face_xml)
-
-cap = cv2.VideoCapture(url)
 
 # only attempt to read if it is opened
 if cap.isOpened:

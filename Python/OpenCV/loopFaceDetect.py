@@ -1,20 +1,28 @@
 import sys
+import argparse
 import os
 import numpy as np
 import cv2
 
-webcamConnected = False
+parser = argparse.ArgumentParser(prog=sys.argv[0], description='detect object with webcam & opencv', allow_abbrev=False)
+parser.add_argument('--width',type=int, dest='width', required=True)
+parser.add_argument('--height',type=int, dest='height', required=True)
+parser.add_argument('--FPS',type=int, dest='FPS', required=True)
+parser.add_argument('--limit-buffer',dest='limitBuffer', action='store_true')
+args = parser.parse_args()
 
-url = "http:/localhost:8082/?action=stream"
+width=args.width
+height=args.height
+FPS=args.FPS
+limitBuffer=args.limitBuffer
 
-# initialize USB webcam video capture.
-# unable to capture directly from /dev/video0, but by using mjpg-streamer in another terminal,
-# capture here works from URL instead.
-cap = cv2.VideoCapture(url)
-# limiting this to '1' means that the sending-receving between mjpg-streamer and this script doesn't cause a frames buildup,
-# (which causes a huge lag)
-# try running the program with this line commented and you will see.
-cap.set(cv2.CAP_PROP_BUFFERSIZE,1)
+cap = cv2.VideoCapture(0)
+cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+cap.set(cv2.CAP_PROP_FPS, FPS)
+if limitBuffer:
+    cap.set(cv2.CAP_PROP_BUFFERSIZE,1)
 
 
 
