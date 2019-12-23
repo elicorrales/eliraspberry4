@@ -1,6 +1,7 @@
 import sys
 import argparse
 import cv2
+import cv2.aruco as aruco
 import numpy as np
 
 parser = argparse.ArgumentParser(prog=sys.argv[0], description='detect object with webcam & opencv', allow_abbrev=False)
@@ -27,19 +28,25 @@ if limitBuffer:
 face_xml = '/home/devchu/.virtualenvs/cv/lib/python3.7/site-packages/cv2/data/haarcascade_frontalface_default.xml'
 face_cascade = cv2.CascadeClassifier(face_xml)
 
+aruco_dict = aruco.Dictionary_get(aruco.DICT_6X6_250)
+parameters = aruco.DetectorParameters_create()
+
 # only attempt to read if it is opened
 if cap.isOpened:
     while(True):
-        ret, img = cap.read()
+        ret, frame = cap.read()
+    
         if ret:
-            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            img = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            corners, ids, rejectedImgPoints = aruco.detectMarkers(img, aruco_dict, parameters=parameters)
+            #faces = face_cascade.detectMultiScale(gray, 1.1, 4)
+            #for (x,y,w,h) in faces:
+                #img = cv2.rectangle(img,(x,y),(x+w,y+h),(255,0,0),2)
+                #roi_gray = gray[y:y+h, x:x+w]
+                #roi_color = img[y:y+h, x:x+w]
 
-            faces = face_cascade.detectMultiScale(gray, 1.1, 4)
-            for (x,y,w,h) in faces:
-                img = cv2.rectangle(img,(x,y),(x+w,y+h),(255,0,0),2)
-                roi_gray = gray[y:y+h, x:x+w]
-                roi_color = img[y:y+h, x:x+w]
-            cv2.imshow('image',img)
+            img2 = aruco.drawDetectedMarkers(frame, corners, ids)
+            cv2.imshow('image',img2)
             cv2.waitKey(1) & 0xFF == ord('q')
         else:
             print("Error reading capture device")
