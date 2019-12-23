@@ -14,6 +14,10 @@ from signal import signal, SIGINT
 from pyfiglet import Figlet
 from datetime import datetime
 import requests
+import time
+import traceback
+import socket
+import urllib3
 
 CHUNK = 512
 sample_format = pyaudio.paInt16  # 16 bits per sample
@@ -133,8 +137,6 @@ def getIsThisCorrectUserInput(justGetYesOrNoResponse):
             elif bestMatch['phrase'] == 'no':
                 metaData['phrase'] = 'no'
                 isThisCorrect = False
-                if not justGetYesOrNoResponse:
-                    textToSpeech.say('Enter phrase.')
             yesNoQuitArray.append(metaData)
         elif handsFree:
             textToSpeech.say('Yes or No?')
@@ -227,35 +229,36 @@ def recordAudio():
     isFirstValidSound = False
     lastSoundWasInvalid = False
     numConsecutiveInvalidSounds = 0
+    while not isFirstValidSound:
+        data = stream.read(CHUNK, exception_on_overflow=False)
+        resultTrue, why, bars, crossings = isValidSound(data, maxBackgroundStartVolume, maxBackgroundStartCrossings)
+        if resultTrue:
+            print('')
+            print('')
+            print('')
+            print('.......capturing..... reason:', why, ' vol:', bars, ' crossings:', crossings)
+            isFirstValidSound = True
+            frames.append(data)
+
     for i in range(0, int(RATE / CHUNK * seconds)):
         data = stream.read(CHUNK, exception_on_overflow=False)
-        if not isFirstValidSound:
-            resultTrue, why, bars, crossings = isValidSound(data, maxBackgroundStartVolume, maxBackgroundStartCrossings)
-            if resultTrue:
-                print('')
-                print('')
-                print('')
-                print('.......capturing..... reason:', why, ' vol:', bars, ' crossings:', crossings)
-                isFirstValidSound = True
-        if isFirstValidSound:
-            isValid, why, bars, crossings = isValidSound(data, maxBackgroundStartVolume, maxBackgroundStartCrossings)
-            if lastSoundWasInvalid and not isValid:
-                numConsecutiveInvalidSounds += 1
-            elif not isValid:
-                numConsecutiveInvalidSounds = 1
-                lastSoundWasInvalid = True
-            else:
-                lastSoundWasInvalid = False
+        isValid, why, bars, crossings = isValidSound(data, maxBackgroundStartVolume, maxBackgroundStartCrossings)
+        if lastSoundWasInvalid and not isValid:
+            numConsecutiveInvalidSounds += 1
+        elif not isValid:
+            numConsecutiveInvalidSounds = 1
+            lastSoundWasInvalid = True
+        else:
+            lastSoundWasInvalid = False
 
-            if numConsecutiveInvalidSounds > 25:
-                print('...Aborting capture..... reason:', why, ' vol:', bars, ' crossings:', crossings)
-                print('')
-                print('')
-                print('')
-                break
+        if numConsecutiveInvalidSounds > 25:
+            print('...Aborting capture..... reason:', why, ' vol:', bars, ' crossings:', crossings)
+            print('')
+            print('')
+            print('')
+            break
 
-        if isFirstValidSound:
-            frames.append(data)
+        frames.append(data)
 
     global numActualRecordedFrames
     numActualRecordedFrames = len(frames)
@@ -506,29 +509,45 @@ def offerHelp():
 
 ##################################################################
 def wallaceIndicatesReadiness():
+
     textToSpeech.say('Wallace is ready.  Do you need help?')
     justGetYesOrNoResponse = True
+
     doHelp, tryAgainForYesNo = getIsThisCorrectUserInput(justGetYesOrNoResponse)
+
+    if not tryAgainForYesNo and not doHelp:
+        textToSpeech.say('Very well, good show. Ready.');
+        return
+
     if not tryAgainForYesNo and doHelp:
         offerHelp()
         return
-    elif tryAgainForYesNo:
+
+    if tryAgainForYesNo:
+
         doHelp, tryAgainForYesNo = getIsThisCorrectUserInput(justGetYesOrNoResponse)
+
+        if not tryAgainForYesNo and not doHelp:
+            textToSpeech.say('Very well, good show. Ready.');
+            return
+
         if not tryAgainForYesNo and doHelp:
             offerHelp()
             return
-        elif tryAgainForYesNo:
+
+        if tryAgainForYesNo:
             textToSpeech.say('Sorry.')
-    else:
-        textToSpeech.say('Good show.')
+
+
+    textToSpeech.say('I am confused.')
 
 
 ##################################################################
 def initRobotDrive():
-    respText = sendRobotDriveCommand('/arduino/api/clr.usb.err')
+    respText = sendRobotUrl('/arduino/api/clr.usb.err')
 
     if 'Cmd Sent To Arduino' in respText:
-        respText = sendRobotDriveCommand('/nodejs/api/stop.console.log.response')
+        respText = sendRobotUrl('/nodejs/api/stop.console.log.response')
         if 'Cmd Sent To Arduino' in respText:
             textToSpeech.say('Robot Is Ready.')
         return True
@@ -539,13 +558,30 @@ def initRobotDrive():
     return False
 
 ##################################################################
-def sendRobotDriveCommand(command):
+def sendRobotUrl(command):
     try:
         response = requests.get(robotDriveUrl + command, timeout=1.5)
         return response.text
-    except:
-        textToSpeech.say('There was an error')
+    except (socket.timeout, urllib3.exceptions.ReadTimeoutError, requests.exceptions.ReadTimeout):
+        #track = traceback.format_exc()
+        #print(track)
+        textToSpeech.say('The request timed out.')
         return ''
+
+##################################################################
+def sendRobotDriveCommand(direction):
+
+    global robotIsReadyToDrive
+
+    if not robotIsReadyToDrive:
+        robotIsReadyToDrive = initRobotDrive()
+
+    if robotIsReadyToDrive:
+        respText = sendRobotUrl('/arduino/api/' + direction + '/100')
+        if not 'Cmd Sent To Arduino' in respText:
+            print(respText)
+            textToSpeech.say(respText)
+
 
 ##################################################################
 def actOnKnownPhrases(phrase, metaDataForLatestRecordedPhrase):
@@ -575,7 +611,7 @@ def actOnKnownPhrases(phrase, metaDataForLatestRecordedPhrase):
         listPhrasesTrained(sayPhrases)
         return
 
-    if phrase == 'quit' or phrase == 'good-bye wallace':
+    if phrase == 'quit' or phrase == 'good-bye wallace' or phrase == 'that is all':
         textToSpeech.say('Good-bye.')
         metaDataForLatestRecordedPhrase['phrase'] = phrase
         print('')
@@ -589,52 +625,46 @@ def actOnKnownPhrases(phrase, metaDataForLatestRecordedPhrase):
 
     if phrase == 'init robot drive':
         robotIsReadyToDrive = initRobotDrive()
+        return
 
 
     if phrase == 'forward':
-        if not robotIsReadyToDrive:
-            robotIsReadyToDrive = initRobotDrive()
-
-        if robotIsReadyToDrive:
-            respText = sendRobotDriveCommand('/arduino/api/forward/100')
-            if not 'Cmd Sent To Arduino' in respText:
-                print(respText)
-                textToSpeech.say(respText)
+        sendRobotDriveCommand('forward')
+        time.sleep(1.2)
+        sendRobotDriveCommand('forward')
+        time.sleep(1.2)
+        sendRobotDriveCommand('forward')
+        textToSpeech.say('Executed ' + phrase)
+        return
 
     if phrase == 'back':
-        if not robotIsReadyToDrive:
-            robotIsReadyToDrive = initRobotDrive()
-
-        if robotIsReadyToDrive:
-            respText = sendRobotDriveCommand('/arduino/api/backward/100')
-            if not 'Cmd Sent To Arduino' in respText:
-                print(respText)
-                textToSpeech.say(respText)
-
+        sendRobotDriveCommand('backward')
+        time.sleep(1.2)
+        sendRobotDriveCommand('backward')
+        time.sleep(1.2)
+        sendRobotDriveCommand('backward')
+        textToSpeech.say('Executed ' + phrase)
+        return
 
     if phrase == 'left':
-        if not robotIsReadyToDrive:
-            robotIsReadyToDrive = initRobotDrive()
-
-        if robotIsReadyToDrive:
-            respText = sendRobotDriveCommand('/arduino/api/left/100')
-            if not 'Cmd Sent To Arduino' in respText:
-                print(respText)
-                textToSpeech.say(respText)
-
+        sendRobotDriveCommand('left')
+        time.sleep(1.2)
+        sendRobotDriveCommand('left')
+        time.sleep(1.2)
+        sendRobotDriveCommand('left')
+        textToSpeech.say('Executed ' + phrase)
+        return
 
     if phrase == 'right':
-        if not robotIsReadyToDrive:
-            robotIsReadyToDrive = initRobotDrive()
+        sendRobotDriveCommand('right')
+        time.sleep(1.2)
+        sendRobotDriveCommand('right')
+        time.sleep(1.2)
+        sendRobotDriveCommand('right')
+        textToSpeech.say('Executed ' + phrase)
+        return
 
-        if robotIsReadyToDrive:
-            respText = sendRobotDriveCommand('/arduino/api/right/100')
-            if not 'Cmd Sent To Arduino' in respText:
-                print(respText)
-                textToSpeech.say(respText)
-
-
-    textToSpeech.say(needPhrase)
+    textToSpeech.say('Do not know what to do with ' + phrase)
 
 ##################################################################
 if __name__ == '__main__':
@@ -709,7 +739,7 @@ while not quitProgram:
                 actOnKnownPhrases(needPhrase, metaDataForLatestRecordedPhrase)
             else:
                 print(f.renderText(bestPhraseMatch['phrase']))
-                textToSpeech.say(bestPhraseMatch['phrase'] + '?')
+                textToSpeech.say('Did you say ' + bestPhraseMatch['phrase'] + '?')
                 justGetYesOrNoResponse = False
                 isThisCorrect, tryAgainForYesNo = getIsThisCorrectUserInput(justGetYesOrNoResponse)
                 if not tryAgainForYesNo and isThisCorrect:
@@ -723,6 +753,7 @@ while not quitProgram:
                     elif tryAgainForYesNo:
                         textToSpeech.say('Sorry.')
                 else:
+                    textToSpeech.say('Enter phrase.')
                     needPhrase = input('Need to assign new phrase to this latest recording:')
         else:
             needPhrase = input('Need to assign new phrase to this latest recording:')
