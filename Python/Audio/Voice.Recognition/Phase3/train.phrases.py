@@ -3,6 +3,7 @@
 # good values: 90 150
 ##################################################################
 import sys
+import os
 import argparse
 import pyaudio
 import numpy as np
@@ -133,7 +134,6 @@ def getIsThisCorrectUserInput(justGetYesOrNoResponse):
             if bestMatch['phrase'] == 'yes':
                 metaData['phrase'] = 'yes'
                 isThisCorrect = True
-                textToSpeech.say('Very Well.')
             elif bestMatch['phrase'] == 'no':
                 metaData['phrase'] = 'no'
                 isThisCorrect = False
@@ -570,17 +570,29 @@ def sendRobotUrl(command):
 
 ##################################################################
 def sendRobotDriveCommand(direction):
-
     global robotIsReadyToDrive
-
     if not robotIsReadyToDrive:
         robotIsReadyToDrive = initRobotDrive()
-
     if robotIsReadyToDrive:
         respText = sendRobotUrl('/arduino/api/' + direction + '/100')
         if not 'Cmd Sent To Arduino' in respText:
             print(respText)
             textToSpeech.say(respText)
+
+##################################################################
+def sendRobotNodeJsCommand(command, resultExpected, sayOnGoodResult):
+    global robotIsReadyToDrive
+    if not robotIsReadyToDrive:
+        robotIsReadyToDrive = initRobotDrive()
+    if robotIsReadyToDrive:
+        respText = sendRobotUrl('/nodejs/api/' + command)
+        if not 'volts\":12' in respText:
+            print(respText)
+            textToSpeech.say(respText)
+        else:
+            textToSpeech.say(sayOnGoodResult)
+
+
 
 
 ##################################################################
@@ -664,6 +676,11 @@ def actOnKnownPhrases(phrase, metaDataForLatestRecordedPhrase):
         textToSpeech.say('Executed ' + phrase)
         return
 
+    if phrase == 'status please':
+        expected = 'volts\":12'
+        sayOnGoodResult = 'Robot motors are good.'
+        sendRobotNodeJsCommand('data', expected, sayOnGoodResult)
+
     textToSpeech.say('Do not know what to do with ' + phrase)
 
 ##################################################################
@@ -739,7 +756,8 @@ while not quitProgram:
                 actOnKnownPhrases(needPhrase, metaDataForLatestRecordedPhrase)
             else:
                 print(f.renderText(bestPhraseMatch['phrase']))
-                textToSpeech.say('Did you say ' + bestPhraseMatch['phrase'] + '?')
+                #textToSpeech.say('Did you say ' + bestPhraseMatch['phrase'] + '?')
+                os.system('espeak -s 140 "Did you say ' + bestPhraseMatch['phrase'] + '?"')
                 justGetYesOrNoResponse = False
                 isThisCorrect, tryAgainForYesNo = getIsThisCorrectUserInput(justGetYesOrNoResponse)
                 if not tryAgainForYesNo and isThisCorrect:
