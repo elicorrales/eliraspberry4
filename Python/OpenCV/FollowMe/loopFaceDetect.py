@@ -1,9 +1,11 @@
 import sys
 import argparse
 import os
+import pyttsx3
 import numpy as np
 import cv2
 import time
+from signal import signal, SIGINT
 
 parser = argparse.ArgumentParser(prog=sys.argv[0], description='detect object with webcam & opencv', allow_abbrev=False)
 parser.add_argument('--width',type=int, dest='width', required=True)
@@ -31,11 +33,39 @@ xml_path = '/home/devchu/.virtualenvs/cv/lib/python3.7/site-packages/cv2/data/'
 face_cascade = cv2.CascadeClassifier(xml_path + 'haarcascade_frontalface_default.xml')
 
 
-faceDetected = False;
-noFaceDetected = False;
+faceDetected = False
+noFaceDetected = False
+positionChanged = False
 lastTimeFaceDetected = time.time()
-xPrev = 0
+x1Prev = 0
+x2Prev = 0
 wPrev = 0
+
+tts = pyttsx3.init()
+
+##################################################################
+def signalHandler(signalReceived, frame):
+    print('Got CTRL-C...')
+
+
+    cap.release()
+    cv2.destroyAllWindows()
+
+    print('Done.')
+
+    sys.exit(0)
+
+
+##################################################################
+def say(phrase):
+    #os.system('espeak-ng -s 140 "' + phrase + '"')
+    tts.say(phrase)
+    tts.runAndWait()
+
+if __name__ == '__main__':
+    signal(SIGINT, signalHandler)
+
+
 
 # only attempt to read if it is opened
 if cap.isOpened:
@@ -48,7 +78,7 @@ if cap.isOpened:
             #cv2.imshow('gray',gray)
             faces = face_cascade.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5)
             if len(faces) < 1 and not noFaceDetected:
-                os.system('espeak-ng -s 140 "No one."')
+                say('No one')
                 noFaceDetected = True
                 faceDetected = False
 
@@ -57,55 +87,45 @@ if cap.isOpened:
 
 
                 if not faceDetected:
-                    os.system('espeak-ng -s 140 "I see you."')
+                    say('I see you')
                     faceDetected = True
                     noFaceDetected = False
-                    xPrev = x
+                    x1Prev = x
+                    x2Prev = x+w
                     wPrev = w
                     lastTimeFaceDetected = time.time()
                 else:
-                    deltaX = x - xPrev
+                    deltaX1 = x - x1Prev
+                    deltaX2 = x+w - x2Prev
                     deltaW = w - wPrev
                     now = time.time()
                     deltaTime = now - lastTimeFaceDetected
-                    #print(deltaTime,' ',xPrev,' ',x,' ',y,' ',w,' ',h)
+
                     if deltaTime > 0.3:
 
-                        if abs(deltaX) < 25 and abs(deltaW) > 10:
-                            if deltaW > 0:
-                                os.system('espeak-ng -s 140 "moving closer."')
-                            else:
-                                os.system('espeak-ng -s 140 "moving farther."')
-                            lastTimeFaceDetected = time.time()
-                            xPrev = x
-                            wPrev = w
+                        positionChanged = False
 
-                        elif abs(deltaX) > 25 and deltaW > 10:
-                            if deltaX > 0:
-                                os.system('espeak-ng -s 140 "moving right closer."')
-                            else:
-                                os.system('espeak-ng -s 140 "moving left closer."')
-                            lastTimeFaceDetected = time.time()
-                            xPrev = x
-                            wPrev = w
 
-                        elif abs(deltaX) > 25 and deltaW < -10:
-                            if deltaX > 0:
-                                os.system('espeak-ng -s 140 "moving right farther."')
-                            else:
-                                os.system('espeak-ng -s 140 "moving left farther."')
-                            lastTimeFaceDetected = time.time()
-                            xPrev = x
-                            wPrev = w
-                        elif abs(deltaX) > 25 and abs(deltaW) < 10:
-                            if deltaX > 0:
-                                os.system('espeak-ng -s 140 "moving right."')
-                            else:
-                                os.system('espeak-ng -s 140 "moving left."')
-                            lastTimeFaceDetected = time.time()
-                            xPrev = x
-                            wPrev = w
+                        if deltaX1 > 25 and deltaX2 > 25:
+                            say('right')
+                            positionChanged = True
 
+                        elif deltaX1 < -25 and deltaX2 < -25:
+                            say('left')
+                            positionChanged = True
+
+                        if deltaW > 7:
+                            say('closer')
+                            positionChanged = True
+                        elif deltaW < -7:
+                            say('farther')
+                            positionChanged = True
+
+                        if positionChanged:
+                            lastTimeFaceDetected = time.time()
+                            x1Prev = x
+                            x2Prev = x+w
+                            wPrev = w
 
 
 
