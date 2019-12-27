@@ -41,13 +41,8 @@ xml_path = '/home/devchu/.virtualenvs/cv/lib/python3.7/site-packages/cv2/data/'
 face_cascade = cv2.CascadeClassifier(xml_path + 'haarcascade_frontalface_default.xml')
 
 
-faceDetected = False
 noFaceDetected = False
-positionChanged = False
-lastTimeFaceDetected = time.time()
-x1Prev = 0
-x2Prev = 0
-wPrev = 0
+lastTimeMoved = time.time()
 
 tts = pyttsx3.init()
 
@@ -151,81 +146,35 @@ if cap.isOpened:
     while(True):
         ret, frame = cap.read()
 
-        if True:
-            #cv2.imshow('frame',frame)
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            #cv2.imshow('gray',gray)
-            faces = face_cascade.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5)
-            if len(faces) < 1 and not noFaceDetected:
-                say('No one')
-                noFaceDetected = True
-                faceDetected = False
-
-            #for each face...
-            for (x, y, w, h) in faces:
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        faces = face_cascade.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5)
+        if len(faces) < 1 and not noFaceDetected:
+            say('No one')
+            noFaceDetected = True
+            lastTimeMoved = time.time()
+            continue
 
 
-                if not faceDetected:
-                    say('I see you')
-                    faceDetected = True
-                    noFaceDetected = False
-                    x1Prev = x
-                    x2Prev = x+w
-                    wPrev = w
-                    lastTimeFaceDetected = time.time()
+        for (x, y, w, h) in faces:
+
+            noFaceDetected = False
+
+            leftEdge = x
+            rightEdge = width - (x + w)
+            print(leftEdge,' ',rightEdge)
+            deltaLeftRight = abs(leftEdge - rightEdge)
+
+            deltaLastTimeMoved = time.time() - lastTimeMoved
+
+            if deltaLeftRight > 20 and deltaLastTimeMoved > 0.2:
+                if leftEdge > rightEdge:
+                    sendRobotDriveCommand('right')
+                    lastTimeMoved = time.time()
                 else:
-                    deltaX1 = x - x1Prev
-                    deltaX2 = x+w - x2Prev
-                    deltaW = w - wPrev
-                    now = time.time()
-                    deltaTime = now - lastTimeFaceDetected
-
-                    if deltaTime > 0.3:
-
-                        positionChanged = False
+                    sendRobotDriveCommand('left')
+                    lastTimeMoved = time.time()
 
 
-                        if deltaX1 > 25 and deltaX2 > 25:
-                            say('right')
-                            positionChanged = True
-                            sendRobotDriveCommand('right')
-
-                        elif deltaX1 < -25 and deltaX2 < -25:
-                            say('left')
-                            positionChanged = True
-                            sendRobotDriveCommand('left')
-
-                        if deltaW > 7:
-                            say('closer')
-                            positionChanged = True
-                            sendRobotDriveCommand('backward')
-                        elif deltaW < -7:
-                            say('farther')
-                            positionChanged = True
-                            sendRobotDriveCommand('forward')
-
-                        if positionChanged:
-                            lastTimeFaceDetected = time.time()
-                            x1Prev = x
-                            x2Prev = x+w
-                            wPrev = w
-
-
-
-                # draw a rectangle around the face
-                #gray = cv2.rectangle(gray, (x, y), (x+w, y+h), (255, 255, 255), 3)
-                #frame = cv2.rectangle(frame, (x, y), (x+w, y+h), (255, 255, 255), 3)
-
-            #cv2.imshow('gray', gray)
-            #cv2.imshow('frame', frame)
-        else:
-            print("Error reading capture device")
-            break
-        if cv2.waitKey(1) & 0xff == ord('q'):
-            break
-
-    cap.release()
-    cv2.destroyAllWindows()
 else:
     print("Failed to open capture device")
 
