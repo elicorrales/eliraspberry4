@@ -16,37 +16,34 @@ parser.add_argument('--width',type=int, dest='width', required=True)
 parser.add_argument('--height',type=int, dest='height', required=True)
 parser.add_argument('--FPS',type=int, dest='FPS', required=True)
 parser.add_argument('--http-timeout',type=float, dest='httpTimeout', required=True)
-parser.add_argument('--speed',type=int, dest='speed', required=True)
+parser.add_argument('--lSpeed',type=int, dest='leftSpeed', required=True)
+parser.add_argument('--rSpeed',type=int, dest='rightSpeed', required=True)
+parser.add_argument('--fbSpeed',type=int, dest='fwdBakSpeed', required=True)
 parser.add_argument('--loopDelay',type=float, dest='loopDelay', required=True)
 parser.add_argument('--min-dist',type=int, dest='minDist', required=True)
 parser.add_argument('--max-dist',type=int, dest='maxDist', required=True)
 parser.add_argument('--limit-buffer',dest='limitBuffer', action='store_true')
+parser.add_argument('--speak',dest='speak', action='store_true')
 args = parser.parse_args()
 
 width=args.width
 height=args.height
 FPS=args.FPS
 httpTimeout=args.httpTimeout
-speed=args.speed
+leftSpeed=args.leftSpeed
+rightSpeed=args.rightSpeed
+fwdBakSpeed=args.fwdBakSpeed
 loopDelay=args.loopDelay
 minDist=args.minDist
 maxDist=args.maxDist
 limitBuffer=args.limitBuffer
+speak=args.speak
 
 robotDriveUrl = 'http://10.0.0.58:8084'
 robotIsReadyToDrive = False
 robotDriveServerConnectionRefusedNumberOfTimes = 0;
 
-cap = cv2.VideoCapture(0)
-cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
-cap.set(cv2.CAP_PROP_FPS, FPS)
-
-if limitBuffer:
-    cap.set(cv2.CAP_PROP_BUFFERSIZE,1)
-
-
+cap = None
 
 xml_path = '/home/devchu/.virtualenvs/cv/lib/python3.7/site-packages/cv2/data/'
 face_cascade = cv2.CascadeClassifier(xml_path + 'haarcascade_frontalface_default.xml')
@@ -63,16 +60,34 @@ faceMovedLeft  = False
 faceMovedRight = False
 faceTooClose   = False
 faceTooFar     = False
+faceIsJustRight= False
 
 lastTimeMoved = time.time()
 
 tts = pyttsx3.init()
 
 ##################################################################
-def cleanUp():
+def initCamera():
+    global cap
+    cap = cv2.VideoCapture(0)
+    cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+    cap.set(cv2.CAP_PROP_FPS, FPS)
+
+    if limitBuffer:
+        cap.set(cv2.CAP_PROP_BUFFERSIZE,1)
+
+
+##################################################################
+def cleanUpCamera():
     cap.release()
     cv2.destroyAllWindows()
-    print('Done.')
+
+##################################################################
+def cleanUp():
+    cleanUpCamera()
+    print('Done. Bye,bye.')
     sys.exit(0)
 
 
@@ -84,8 +99,9 @@ def signalHandler(signalReceived, frame):
 
 ##################################################################
 def say(phrase):
-    tts.say(phrase)
-    tts.runAndWait()
+    if speak:
+        tts.say(phrase)
+        tts.runAndWait()
 
 ##################################################################
 def sendRobotUrl(command):
@@ -124,7 +140,7 @@ def initRobotDrive():
     return False
 
 ##################################################################
-def sendRobotDriveCommand(direction, mySpeed=speed):
+def sendRobotDriveCommand(direction, mySpeed):
     global robotIsReadyToDrive
     if not robotIsReadyToDrive:
         robotIsReadyToDrive = initRobotDrive()
@@ -150,6 +166,61 @@ def sendRobotNodeJsCommand(command, resultExpected, sayOnGoodResult):
 
 
 
+##################################################################
+def moveLeftOrRightToCenterOnFace(deltaLastTimeMoved, deltaLeftRight, leftEdge, rightEdge):
+    global lastTimeMoved
+    global faceMovedRight
+    global faceMovedLeft
+
+    if deltaLastTimeMoved > loopDelay and deltaLeftRight > 45:
+
+        if leftEdge > rightEdge:
+            if not faceMovedRight:
+                say('right')
+                faceMovedRight = True
+            sendRobotDriveCommand('right',rightSpeed)
+        else:
+            if not faceMovedLeft:
+                say('left')
+                faceMovedLeft = True
+            sendRobotDriveCommand('left',leftSpeed)
+
+        lastTimeMoved = time.time()
+
+
+##################################################################
+def moveMoveForwardOrBackForCorrectDistanceAway():
+    global lastTimeMoved
+    global faceCentered
+    global faceIsJustRight
+    global faceTooClose
+    global faceTooFar
+
+    if not faceCentered:
+        say('center')
+        faceCentered = True
+
+    if w > minDist and deltaLastTimeMoved > loopDelay:
+        faceIsJustRight = False
+        if not faceTooClose:
+            say('close')
+            faceTooClose = True
+        sendRobotDriveCommand('backward',fwdBakSpeed)
+        lastTimeMoved = time.time()
+    elif w < maxDist and deltaLastTimeMoved > loopDelay:
+        faceIsJustRight = False
+        if not faceTooFar:
+            say('far')
+            faceTooFar = True
+        sendRobotDriveCommand('forward',fwdBakSpeed)
+        lastTimeMoved = time.time()
+    elif w >= maxDist and w<=minDist:
+        faceTooClose = False
+        faceTooFar = False
+        if not faceIsJustRight:
+            faceIsJustRight = True
+            say('Stay there')
+
 
 ##################################################################
 ##################################################################
@@ -160,17 +231,27 @@ def sendRobotNodeJsCommand(command, resultExpected, sayOnGoodResult):
 if __name__ == '__main__':
     signal(SIGINT, signalHandler)
 
+initCamera()
 
 robotIsReadyToDrive = initRobotDrive()
 robotIsReadyToDrive = initRobotDrive()
 robotIsReadyToDrive = initRobotDrive()
+
+if not robotIsReadyToDrive:
+    cleanUp()
+
 
 # only attempt to read if it is opened
 if cap.isOpened:
     while(True):
         ret, frame = cap.read()
 
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        gray = None
+        try:
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        except:
+            cleanUpCamera()
+            initCamera()
 
         faces = face_cascade.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5)
 
@@ -185,6 +266,7 @@ if cap.isOpened:
             faceMovedRight = False
             faceTooClose   = False
             faceTooFar     = False
+            faceIsJustRight = False
             continue
 
         elif len(faces) > 2:
@@ -215,47 +297,19 @@ if cap.isOpened:
 
             deltaLastTimeMoved = time.time() - lastTimeMoved
 
-            ####################################################
-            # only if already centered, do we move toward or away
-            if deltaLeftRight <= 40:
+            if deltaLeftRight <= 45:
 
                 faceMovedLeft = False
                 faceMovedRight = False
 
-                if not faceCentered:
-                    say('center')
-                    faceCentered = True
-
-                if w > minDist and deltaLastTimeMoved > loopDelay:
-                    if not faceTooClose:
-                        say('close')
-                        faceTooClose = True
-                    sendRobotDriveCommand('backward', 43)
-                    lastTimeMoved = time.time()
-                elif w < maxDist and deltaLastTimeMoved > loopDelay:
-                    if not faceTooFar:
-                        say('far')
-                        faceTooFar = True
-                    sendRobotDriveCommand('forward', 43)
-                    lastTimeMoved = time.time()
-
- 
             else:
                 faceCentered = False
-                if deltaLastTimeMoved > loopDelay:
+                faceIsJustRight = False
 
-                    if leftEdge > rightEdge:
-                        if not faceMovedRight:
-                            say('right')
-                            faceMovedRight = True
-                        sendRobotDriveCommand('right')
-                    else:
-                        if not faceMovedLeft:
-                            say('left')
-                            faceMovedLeft = True
-                        sendRobotDriveCommand('left')
+            moveMoveForwardOrBackForCorrectDistanceAway()
 
-                    lastTimeMoved = time.time()
+ 
+            moveLeftOrRightToCenterOnFace(deltaLastTimeMoved, deltaLeftRight, leftEdge, rightEdge)
  
 else:
     print("Failed to open capture device")
