@@ -102,6 +102,7 @@ def say(phrase):
     if speak:
         tts.say(phrase)
         tts.runAndWait()
+    print(phrase)
 
 ##################################################################
 def sendRobotUrl(command):
@@ -128,15 +129,22 @@ def sendRobotUrl(command):
 
 ##################################################################
 def initRobotDrive():
+    respText = sendRobotUrl('/nodejs/api/data')
+    if '"volts":-1' in respText:
+        say('Arduino is Up, but Not Roboclaw')
+        cleanUp()
+    time.sleep(0.5)
     respText = sendRobotUrl('/arduino/api/clr.usb.err')
-
     if 'Cmd Sent To Arduino' in respText:
+        time.sleep(1)
+        respText = sendRobotUrl('/nodejs/api/data')
+        if 'NEEDINIT' in respText:
+            return False
         say('Robot Is Ready.')
         return True
     else:
         print(respText)
         say(respText)
-
     return False
 
 ##################################################################
@@ -234,10 +242,13 @@ if __name__ == '__main__':
 initCamera()
 
 robotIsReadyToDrive = initRobotDrive()
-robotIsReadyToDrive = initRobotDrive()
-robotIsReadyToDrive = initRobotDrive()
+if not robotIsReadyToDrive:
+    robotIsReadyToDrive = initRobotDrive()
+    if not robotIsReadyToDrive:
+        robotIsReadyToDrive = initRobotDrive()
 
 if not robotIsReadyToDrive:
+    say('Robot not initialized')
     cleanUp()
 
 
@@ -251,6 +262,7 @@ if cap.isOpened:
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         except:
             cleanUpCamera()
+            time.sleep(0.5)
             initCamera()
 
         faces = face_cascade.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5)
