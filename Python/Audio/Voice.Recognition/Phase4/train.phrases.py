@@ -37,6 +37,7 @@ parser.add_argument('--length', type=int, dest='seconds')
 parser.add_argument('--json-file', type=str, dest='phrasesJsonFile')
 parser.add_argument('--find-noise-level', dest='findNoiseLevel', action='store_true')
 parser.add_argument('--hands-free', dest='handsFree', action='store_true')
+parser.add_argument('--semi-hands-free', dest='semiHandsFree', action='store_true')
 parser.set_defaults(
         maxBackgroundStartVolume=9, 
         maxBackgroundStartCrossings=24, 
@@ -61,6 +62,7 @@ conversationJsonFile='conversation.json'
 continuousPhrase=args.continuousPhrase
 findNoiseLevel=args.findNoiseLevel
 handsFree=args.handsFree
+semiHandsFree=args.semiHandsFree
 
 findNoiseLevelReadyToBegin = False
 foundMaxBackgroundStartVolumeLevel = False
@@ -87,11 +89,11 @@ robotIsReadyToDrive = False
 tts = pyttsx3.init()
 
 ##################################################################
-def say(phrase):
+def say(phrase,waitTime):
     tts.say(phrase)
     tts.runAndWait()
     print(phrase)
-    time.sleep(0.5)
+    time.sleep(waitTime)
 
 ##################################################################
 def listPhrasesTrained(sayPhrases):
@@ -103,7 +105,7 @@ def listPhrasesTrained(sayPhrases):
             listedPhrases.append(phrStr)
             print(phrStr)
             if sayPhrases and phrStr != 'noise':
-                say(phrStr)
+                say(phrStr,1)
 
 
 ##################################################################
@@ -139,7 +141,7 @@ def getIsThisCorrectUserInput(justGetYesOrNoResponse, triedAgainForYesNo):
             difference, numMatches, bestMatch = findBestMatch(metaData, yesNoQuitArray)
             print('difference: ', difference, ', numMatches: ', numMatches)
 
-        if (difference < 400 and numMatches > 6) or (difference < 150 and numMatches > 2):
+        if (difference < 300 and numMatches > 10) or (difference < 50 and numMatches > 5):
 
             newYesNoQuitAddedThisTime = True
             print('Found good match...')
@@ -152,13 +154,37 @@ def getIsThisCorrectUserInput(justGetYesOrNoResponse, triedAgainForYesNo):
             yesNoQuitArray.append(metaData)
             gotClearYesOrNo = True
 
-        elif handsFree:
+        elif semiHandsFree:
             if not triedAgainForYesNo:
-                say('Yes or No?')
+                say('Yes or No?',0.5)
                 tryAgainForYesNo = True
             else:
                 tryAgainForYesNo = False
                 isThisCorrect = False
+                if justGetYesOrNoResponse:
+                    userResponse = input('Yes or No <y|n> :')
+                else:
+                    userResponse = input('Correct ? <y|n> :')
+                if userResponse == 'y':
+                    isThisCorrect = True
+                    metaData['phrase'] = 'yes'
+                    yesNoQuitArray.append(metaData)
+                    newYesNoQuitAddedThisTime = True
+                    gotClearYesOrNo = True
+                elif userResponse == 'n':
+                    metaData['phrase'] = 'no'
+                    yesNoQuitArray.append(metaData)
+                    newYesNoQuitAddedThisTime = True
+                    gotClearYesOrNo = True
+
+        elif handsFree:
+            if not triedAgainForYesNo:
+                say('Yes or No?', 0.5)
+                tryAgainForYesNo = True
+            else:
+                tryAgainForYesNo = False
+                isThisCorrect = False
+
         else:
             if justGetYesOrNoResponse:
                 userResponse = input('Yes or No <y|n> :')
@@ -169,10 +195,12 @@ def getIsThisCorrectUserInput(justGetYesOrNoResponse, triedAgainForYesNo):
                 metaData['phrase'] = 'yes'
                 yesNoQuitArray.append(metaData)
                 newYesNoQuitAddedThisTime = True
+                tryAgainForYesNo = False
             elif userResponse == 'n':
                 metaData['phrase'] = 'no'
                 yesNoQuitArray.append(metaData)
                 newYesNoQuitAddedThisTime = True
+                tryAgainForYesNo = False
 
 
     return isThisCorrect, tryAgainForYesNo, gotClearYesOrNo
@@ -557,11 +585,13 @@ def doAction(action, phraseText):
         doGoodBye(phraseText)
         return
 
+    say('Do not know action ' + action + '.', 1.5)
+
 ##################################################################
 def doGoodBye(phraseText):
     metaDataForLatestRecordedPhrase['phrase'] = phraseText
     print('')
-    print('Saving : ', phrase)
+    print('Saving : ', phraseText)
     print('')
     phrasesArray.append(metaDataForLatestRecordedPhrase)
     global newPhraseAddedThisTime
@@ -572,7 +602,7 @@ def doGoodBye(phraseText):
 ##################################################################
 def offerHelp():
 
-    say('You may say, ')
+    say('You may say, ',0.1)
     sayPhrases = True
     listPhrasesTrained(sayPhrases)
 
@@ -581,13 +611,13 @@ def wallaceIndicatesReadiness():
 
     print('Wallace is ready.')
 
-    say('Wallace is ready.  Do you need help?')
+    say('Wallace is ready.  Do you need help?',2)
     justGetYesOrNoResponse = True
 
     doHelp, tryAgainForYesNo, gotClearYesOrNo = getIsThisCorrectUserInput(justGetYesOrNoResponse, False)
 
     if not tryAgainForYesNo and gotClearYesOrNo and not doHelp:
-        say('Very well, good show. Ready.');
+        say('Very well, good show. Ready.',2);
         return
 
     if not tryAgainForYesNo and doHelp:
@@ -599,7 +629,7 @@ def wallaceIndicatesReadiness():
         doHelp, tryAgainForYesNo, gotClearYesOrNo = getIsThisCorrectUserInput(justGetYesOrNoResponse, True)
 
         if not tryAgainForYesNo and gotClearYesOrNo and not doHelp:
-            say('Very well, good show. Ready.');
+            say('Very well, good show. Ready.',2);
             return
 
         if not tryAgainForYesNo and doHelp:
@@ -607,10 +637,10 @@ def wallaceIndicatesReadiness():
             return
 
         if not tryAgainForYesNo:
-            say('Sorry.')
+            say('Sorry.',1)
 
 
-    say('I am confused.')
+    say('I am confused.', 1.5)
 
 
 ##################################################################
@@ -620,11 +650,11 @@ def initRobotDrive():
     if 'Cmd Sent To Arduino' in respText:
         respText = sendRobotUrl('/nodejs/api/stop.console.log.response')
         if 'Cmd Sent To Arduino' in respText:
-            say('Robot Is Ready.')
+            say('Robot Is Ready.',1)
         return True
     else:
         print(respText)
-        say(respText)
+        say(respText,1)
 
     return False
 
@@ -636,7 +666,7 @@ def sendRobotUrl(command):
     except (socket.timeout, urllib3.exceptions.ReadTimeoutError, requests.exceptions.ReadTimeout):
         #track = traceback.format_exc()
         #print(track)
-        say('The request timed out.')
+        say('The request timed out.',2)
         return ''
 
 ##################################################################
@@ -648,7 +678,7 @@ def sendRobotDriveCommand(direction):
         respText = sendRobotUrl('/arduino/api/' + direction + '/100')
         if not 'Cmd Sent To Arduino' in respText:
             print(respText)
-            say(respText)
+            say(respText,2)
 
 ##################################################################
 def sendRobotNodeJsCommand(command, resultExpected, sayOnGoodResult):
@@ -659,9 +689,9 @@ def sendRobotNodeJsCommand(command, resultExpected, sayOnGoodResult):
         respText = sendRobotUrl('/nodejs/api/' + command)
         if not 'volts\":12' in respText:
             print(respText)
-            say(respText)
+            say(respText,2)
         else:
-            say(sayOnGoodResult)
+            say(sayOnGoodResult,1)
 
 
 
@@ -674,7 +704,7 @@ def actOnKnownPhrases(phraseText, metaDataForLatestRecordedPhrase):
     try:
         conversation = conversationMap[phraseText]
     except (KeyError):
-        say('Do not know conversation for ' + phraseText)
+        say('Do not know conversation for ' + phraseText, 2)
         return
     except:
         track = traceback.format_exc()
@@ -685,7 +715,7 @@ def actOnKnownPhrases(phraseText, metaDataForLatestRecordedPhrase):
         return
 
     if conversation['response'] != 'none' and conversation['response'] != '':
-        say(conversation['response'])
+        say(conversation['response'], 1.5)
         if conversation['action'] == 'none' or conversation['action'] == '':
             return
 
@@ -694,13 +724,13 @@ def actOnKnownPhrases(phraseText, metaDataForLatestRecordedPhrase):
         return
 
     if phraseText == 'hello wallace':
-        say('Hello, how are you today?')
+        say('Hello, how are you today?', 1.5)
         return
     if phraseText == 'thank you wallace':
-        say('You are welcome.')
+        say('You are welcome.', 1.5)
         return
     if phraseText == 'fine thank you':
-        say('Good show.')
+        say('Good show.', 1.5)
         return
     if phraseText == 'what time is it':
         say(datetime.now().strftime('%H:%M'))
@@ -723,7 +753,7 @@ def actOnKnownPhrases(phraseText, metaDataForLatestRecordedPhrase):
         sendRobotDriveCommand('forward')
         time.sleep(1.2)
         sendRobotDriveCommand('forward')
-        say('Executed ' + phraseText)
+        say('Executed ' + phraseText, 2)
         return
 
     if phraseText == 'back':
@@ -732,7 +762,7 @@ def actOnKnownPhrases(phraseText, metaDataForLatestRecordedPhrase):
         sendRobotDriveCommand('backward')
         time.sleep(1.2)
         sendRobotDriveCommand('backward')
-        say('Executed ' + phraseText)
+        say('Executed ' + phraseText, 2)
         return
 
     if phraseText == 'left':
@@ -741,7 +771,7 @@ def actOnKnownPhrases(phraseText, metaDataForLatestRecordedPhrase):
         sendRobotDriveCommand('left')
         time.sleep(1.2)
         sendRobotDriveCommand('left')
-        say('Executed ' + phraseText)
+        say('Executed ' + phraseText, 2)
         return
 
     if phraseText == 'right':
@@ -750,7 +780,7 @@ def actOnKnownPhrases(phraseText, metaDataForLatestRecordedPhrase):
         sendRobotDriveCommand('right')
         time.sleep(1.2)
         sendRobotDriveCommand('right')
-        say('Executed ' + phraseText)
+        say('Executed ' + phraseText, 2)
         return
 
     if phraseText == 'status please':
@@ -758,7 +788,7 @@ def actOnKnownPhrases(phraseText, metaDataForLatestRecordedPhrase):
         sayOnGoodResult = 'Robot motors are good.'
         sendRobotNodeJsCommand('data', expected, sayOnGoodResult)
 
-    say('Do not know what to do with ' + phraseText)
+    say('Do not know what to do with ' + phraseText, 2)
 
 ##################################################################
 if __name__ == '__main__':
@@ -777,7 +807,7 @@ while not quitProgram:
     # if we are in finding noise level mode, we also do not prompt for input.
     # there is also the option to be more conversational, where it acts on phrases,
     # AND does live training, so we dont want user to have to keep hitting <ENTER> here.
-    if not handsFree:
+    if not handsFree and not semiHandsFree:
         if continuousPhrase == '' or (findNoiseLevel and not findNoiseLevelReadyToBegin):
 
             sayPhrases = False
@@ -835,14 +865,14 @@ while not quitProgram:
             else:
                 print(f.renderText(bestPhraseMatch['phrase']))
                 #say('Did you say ' + bestPhraseMatch['phrase'] + '?')
-                say('Did you say ' + bestPhraseMatch['phrase'] + '?"')
+                say('Did you say ' + bestPhraseMatch['phrase'] + '?"', 1)
                 justGetYesOrNoResponse = False
                 isThisCorrect, tryAgainForYesNo, gotClearYesOrNo = getIsThisCorrectUserInput(justGetYesOrNoResponse, False)
                 if not tryAgainForYesNo and isThisCorrect:
                     needPhrase = bestPhraseMatch['phrase']
                     actOnKnownPhrases(needPhrase, metaDataForLatestRecordedPhrase)
                 elif not tryAgainForYesNo and not isThisCorrect:
-                    say('Enter phrase.')
+                    say('Enter phrase.', 1)
                     needPhrase = input('Need to assign new phrase to this latest recording:')
                 elif tryAgainForYesNo:
                     isThisCorrect, tryAgainForYesNo, gotClearYesOrNo = getIsThisCorrectUserInput(justGetYesOrNoResponse, True)
@@ -850,13 +880,13 @@ while not quitProgram:
                         needPhrase = bestPhraseMatch['phrase']
                         actOnKnownPhrases(needPhrase, metaDataForLatestRecordedPhrase)
                     elif not tryAgainForYesNo and gotClearYesOrNo and not isThisCorrect:
-                        say('Enter phrase.')
+                        say('Enter phrase.', 1)
                         needPhrase = input('Need to assign new phrase to this latest recording:')
                     else:
-                        say('Sorry.')
+                        say('Sorry.', 1)
                         continue
                 else:
-                    say('Sorry.')
+                    say('Sorry.', 1)
                     continue
         else:
             needPhrase = input('Need to assign new phrase to this latest recording:')

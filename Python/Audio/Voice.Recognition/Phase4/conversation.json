@@ -1,5 +1,7 @@
 {
     "noise":{"response":"", "action":""},
+    "hello wallace":{"response":"hello how are you today?", "action":"none"},
+    "fine thank you":{"response":"Good show.", "action":"none"},
     "quit":{"response":"good-bye", "action":"doGoodBye"},
     "good-bye wallace":{"response":"good-bye", "action":"doGoodBye"},
     "that is all":{"response":"good-bye", "action":"doGoodBye"},
