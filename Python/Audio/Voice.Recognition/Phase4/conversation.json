@@ -1,0 +1,11 @@
+{
+    "noise":{"response":"", "action":""},
+    "quit":{"response":"good-bye", "action":"doGoodBye"},
+    "good-bye wallace":{"response":"good-bye", "action":"doGoodBye"},
+    "that is all":{"response":"good-bye", "action":"doGoodBye"},
+    "help please":{"response":"", "action":"offerHelp"},
+    "list please":{"response":"", "action":"listPhrasesTrained"},
+    "wallace":{"response":"how may I help you?", "action":"none"},
+    "you are too close":{"response":"so sorry","action":"backward"},
+    "you are too far":{"response":"so sorry","action":"forward"}
+}

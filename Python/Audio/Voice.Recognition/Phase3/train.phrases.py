@@ -10,7 +10,7 @@ import numpy as np
 import wave
 import statistics 
 import json
-import talkey
+import pyttsx3
 from signal import signal, SIGINT
 from pyfiglet import Figlet
 from datetime import datetime
@@ -69,7 +69,6 @@ valueOfMaxBackgroundStartCrossingsFound = sys.maxsize
 
 numActualRecordedFrames = 0
 maxFramesBeforeTrim = int(RATE / CHUNK * seconds)
-textToSpeech = talkey.Talkey(preferred_language=['en'])
 p = pyaudio.PyAudio()  # Create an interface to PortAudio
 f = Figlet()
 yesNoQuitArray = []
@@ -83,6 +82,14 @@ newYesNoQuitAddedThisTime = False
 robotDriveUrl = 'http://10.0.0.58:8084'
 robotIsReadyToDrive = False
 
+tts = pyttsx3.init()
+
+##################################################################
+def say(phrase):
+    tts.say(phrase)
+    tts.runAndWait()
+    print(phrase)
+
 ##################################################################
 def listPhrasesTrained(sayPhrases):
 
@@ -93,7 +100,7 @@ def listPhrasesTrained(sayPhrases):
             listedPhrases.append(phrStr)
             print(phrStr)
             if sayPhrases and phrStr != 'noise':
-                textToSpeech.say(phrStr)
+                say(phrStr)
 
 
 ##################################################################
@@ -139,7 +146,7 @@ def getIsThisCorrectUserInput(justGetYesOrNoResponse):
                 isThisCorrect = False
             yesNoQuitArray.append(metaData)
         elif handsFree:
-            textToSpeech.say('Yes or No?')
+            say('Yes or No?')
             tryAgainForYesNo = True
         else:
             if justGetYesOrNoResponse:
@@ -503,20 +510,20 @@ def findNoiseLevel(phraseFrames):
 ##################################################################
 def offerHelp():
 
-    textToSpeech.say('You may say, ')
+    say('You may say, ')
     sayPhrases = True
     listPhrasesTrained(sayPhrases)
 
 ##################################################################
 def wallaceIndicatesReadiness():
 
-    textToSpeech.say('Wallace is ready.  Do you need help?')
+    say('Wallace is ready.  Do you need help?')
     justGetYesOrNoResponse = True
 
     doHelp, tryAgainForYesNo = getIsThisCorrectUserInput(justGetYesOrNoResponse)
 
     if not tryAgainForYesNo and not doHelp:
-        textToSpeech.say('Very well, good show. Ready.');
+        say('Very well, good show. Ready.');
         return
 
     if not tryAgainForYesNo and doHelp:
@@ -528,7 +535,7 @@ def wallaceIndicatesReadiness():
         doHelp, tryAgainForYesNo = getIsThisCorrectUserInput(justGetYesOrNoResponse)
 
         if not tryAgainForYesNo and not doHelp:
-            textToSpeech.say('Very well, good show. Ready.');
+            say('Very well, good show. Ready.');
             return
 
         if not tryAgainForYesNo and doHelp:
@@ -536,10 +543,10 @@ def wallaceIndicatesReadiness():
             return
 
         if tryAgainForYesNo:
-            textToSpeech.say('Sorry.')
+            say('Sorry.')
 
 
-    textToSpeech.say('I am confused.')
+    say('I am confused.')
 
 
 ##################################################################
@@ -549,11 +556,11 @@ def initRobotDrive():
     if 'Cmd Sent To Arduino' in respText:
         respText = sendRobotUrl('/nodejs/api/stop.console.log.response')
         if 'Cmd Sent To Arduino' in respText:
-            textToSpeech.say('Robot Is Ready.')
+            say('Robot Is Ready.')
         return True
     else:
         print(respText)
-        textToSpeech.say(respText)
+        say(respText)
 
     return False
 
@@ -565,7 +572,7 @@ def sendRobotUrl(command):
     except (socket.timeout, urllib3.exceptions.ReadTimeoutError, requests.exceptions.ReadTimeout):
         #track = traceback.format_exc()
         #print(track)
-        textToSpeech.say('The request timed out.')
+        say('The request timed out.')
         return ''
 
 ##################################################################
@@ -577,7 +584,7 @@ def sendRobotDriveCommand(direction):
         respText = sendRobotUrl('/arduino/api/' + direction + '/100')
         if not 'Cmd Sent To Arduino' in respText:
             print(respText)
-            textToSpeech.say(respText)
+            say(respText)
 
 ##################################################################
 def sendRobotNodeJsCommand(command, resultExpected, sayOnGoodResult):
@@ -588,9 +595,9 @@ def sendRobotNodeJsCommand(command, resultExpected, sayOnGoodResult):
         respText = sendRobotUrl('/nodejs/api/' + command)
         if not 'volts\":12' in respText:
             print(respText)
-            textToSpeech.say(respText)
+            say(respText)
         else:
-            textToSpeech.say(sayOnGoodResult)
+            say(sayOnGoodResult)
 
 
 
@@ -606,16 +613,16 @@ def actOnKnownPhrases(phrase, metaDataForLatestRecordedPhrase):
         offerHelp()
         return
     if phrase == 'hello wallace':
-        textToSpeech.say('Hello, how are you today?')
+        say('Hello, how are you today?')
         return
     if phrase == 'thank you wallace':
-        textToSpeech.say('You are welcome.')
+        say('You are welcome.')
         return
     if phrase == 'fine thank you':
-        textToSpeech.say('Good show.')
+        say('Good show.')
         return
     if phrase == 'what time is it':
-        textToSpeech.say(datetime.now().strftime('%H:%M'))
+        say(datetime.now().strftime('%H:%M'))
         return
 
     if phrase == 'list please':
@@ -624,7 +631,7 @@ def actOnKnownPhrases(phrase, metaDataForLatestRecordedPhrase):
         return
 
     if phrase == 'quit' or phrase == 'good-bye wallace' or phrase == 'that is all':
-        textToSpeech.say('Good-bye.')
+        say('Good-bye.')
         metaDataForLatestRecordedPhrase['phrase'] = phrase
         print('')
         print('Saving : ', phrase)
@@ -646,7 +653,7 @@ def actOnKnownPhrases(phrase, metaDataForLatestRecordedPhrase):
         sendRobotDriveCommand('forward')
         time.sleep(1.2)
         sendRobotDriveCommand('forward')
-        textToSpeech.say('Executed ' + phrase)
+        say('Executed ' + phrase)
         return
 
     if phrase == 'back':
@@ -655,7 +662,7 @@ def actOnKnownPhrases(phrase, metaDataForLatestRecordedPhrase):
         sendRobotDriveCommand('backward')
         time.sleep(1.2)
         sendRobotDriveCommand('backward')
-        textToSpeech.say('Executed ' + phrase)
+        say('Executed ' + phrase)
         return
 
     if phrase == 'left':
@@ -664,7 +671,7 @@ def actOnKnownPhrases(phrase, metaDataForLatestRecordedPhrase):
         sendRobotDriveCommand('left')
         time.sleep(1.2)
         sendRobotDriveCommand('left')
-        textToSpeech.say('Executed ' + phrase)
+        say('Executed ' + phrase)
         return
 
     if phrase == 'right':
@@ -673,7 +680,7 @@ def actOnKnownPhrases(phrase, metaDataForLatestRecordedPhrase):
         sendRobotDriveCommand('right')
         time.sleep(1.2)
         sendRobotDriveCommand('right')
-        textToSpeech.say('Executed ' + phrase)
+        say('Executed ' + phrase)
         return
 
     if phrase == 'status please':
@@ -681,7 +688,7 @@ def actOnKnownPhrases(phrase, metaDataForLatestRecordedPhrase):
         sayOnGoodResult = 'Robot motors are good.'
         sendRobotNodeJsCommand('data', expected, sayOnGoodResult)
 
-    textToSpeech.say('Do not know what to do with ' + phrase)
+    say('Do not know what to do with ' + phrase)
 
 ##################################################################
 if __name__ == '__main__':
@@ -756,7 +763,7 @@ while not quitProgram:
                 actOnKnownPhrases(needPhrase, metaDataForLatestRecordedPhrase)
             else:
                 print(f.renderText(bestPhraseMatch['phrase']))
-                #textToSpeech.say('Did you say ' + bestPhraseMatch['phrase'] + '?')
+                #say('Did you say ' + bestPhraseMatch['phrase'] + '?')
                 os.system('espeak -s 140 "Did you say ' + bestPhraseMatch['phrase'] + '?"')
                 justGetYesOrNoResponse = False
                 isThisCorrect, tryAgainForYesNo = getIsThisCorrectUserInput(justGetYesOrNoResponse)
@@ -769,9 +776,9 @@ while not quitProgram:
                         needPhrase = bestPhraseMatch['phrase']
                         actOnKnownPhrases(needPhrase, metaDataForLatestRecordedPhrase)
                     elif tryAgainForYesNo:
-                        textToSpeech.say('Sorry.')
+                        say('Sorry.')
                 else:
-                    textToSpeech.say('Enter phrase.')
+                    say('Enter phrase.')
                     needPhrase = input('Need to assign new phrase to this latest recording:')
         else:
             needPhrase = input('Need to assign new phrase to this latest recording:')
