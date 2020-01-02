@@ -38,6 +38,10 @@ parser.add_argument('--json-file', type=str, dest='phrasesJsonFile')
 parser.add_argument('--find-noise-level', dest='findNoiseLevel', action='store_true')
 parser.add_argument('--hands-free', dest='handsFree', action='store_true')
 parser.add_argument('--semi-hands-free', dest='semiHandsFree', action='store_true')
+parser.add_argument('--http-timeout',type=float, dest='httpTimeout', required=True)
+parser.add_argument('--lSpeed',type=int, dest='leftSpeed', required=True)
+parser.add_argument('--rSpeed',type=int, dest='rightSpeed', required=True)
+parser.add_argument('--fbSpeed',type=int, dest='fwdBakSpeed', required=True)
 parser.set_defaults(
         maxBackgroundStartVolume=9, 
         maxBackgroundStartCrossings=24, 
@@ -63,6 +67,10 @@ continuousPhrase=args.continuousPhrase
 findNoiseLevel=args.findNoiseLevel
 handsFree=args.handsFree
 semiHandsFree=args.semiHandsFree
+httpTimeout=args.httpTimeout
+leftSpeed=args.leftSpeed
+rightSpeed=args.rightSpeed
+fwdBakSpeed=args.fwdBakSpeed
 
 findNoiseLevelReadyToBegin = False
 foundMaxBackgroundStartVolumeLevel = False
@@ -85,6 +93,7 @@ newYesNoQuitAddedThisTime = False
 
 robotDriveUrl = 'http://10.0.0.58:8084'
 robotIsReadyToDrive = False
+robotDriveServerConnectionRefusedNumberOfTimes = 0;
 
 tts = pyttsx3.init()
 
@@ -92,13 +101,15 @@ tts = pyttsx3.init()
 def say(phrase,waitTime):
     tts.say(phrase)
     tts.runAndWait()
-    print(phrase)
+    #print(phrase)
     time.sleep(waitTime)
 
 ##################################################################
 def listPhrasesTrained(sayPhrases):
 
     listedPhrases = []
+    print('')
+    print('============================================================')
     for phrase in phrasesArray:
         phrStr = phrase['phrase']
         if not phrStr in listedPhrases:
@@ -106,6 +117,8 @@ def listPhrasesTrained(sayPhrases):
             print(phrStr)
             if sayPhrases and phrStr != 'noise':
                 say(phrStr,1)
+    print('============================================================')
+    print('')
 
 
 ##################################################################
@@ -156,7 +169,7 @@ def getIsThisCorrectUserInput(justGetYesOrNoResponse, triedAgainForYesNo):
 
         elif semiHandsFree:
             if not triedAgainForYesNo:
-                say('Yes or No?',0.5)
+                say('Yes or No?',.8)
                 tryAgainForYesNo = True
             else:
                 tryAgainForYesNo = False
@@ -179,7 +192,7 @@ def getIsThisCorrectUserInput(justGetYesOrNoResponse, triedAgainForYesNo):
 
         elif handsFree:
             if not triedAgainForYesNo:
-                say('Yes or No?', 0.5)
+                say('Yes or No?', 0.8)
                 tryAgainForYesNo = True
             else:
                 tryAgainForYesNo = False
@@ -574,16 +587,62 @@ def findTheNoiseLevel(phraseFrames):
 
 ##################################################################
 def doAction(action, phraseText):
-    if action == 'offerHelp':
+    if action == 'doOfferHelp':
         offerHelp()
         return
-    if action == 'listPhrasesTrained':
+    if action == 'doListPhrasesTrained':
         sayPhrases = False
         listPhrasesTrained(sayPhrases)
         return
     if action == 'doGoodBye':
         doGoodBye(phraseText)
         return
+    if action == 'doCurrentTime':
+        sayCurrentTime()
+        return
+    if action == 'doInitRobotDrive':
+        initRobotDrive()
+        return
+    if action == 'doForward':
+        initRobotDrive()
+        sendRobotDriveCommand('forward', fwdBakSpeed)
+        #time.sleep(1.2)
+        #sendRobotDriveCommand('forward')
+        #time.sleep(1.2)
+        #sendRobotDriveCommand('forward')
+        say('Did ' + phraseText, 2)
+        return
+    if action == 'doBackward':
+        initRobotDrive()
+        sendRobotDriveCommand('backward', fwdBakSpeed)
+        #time.sleep(1.2)
+        #sendRobotDriveCommand('forward')
+        #time.sleep(1.2)
+        #sendRobotDriveCommand('forward')
+        say('Did ' + phraseText, 2)
+        return
+    if action == 'doLeft':
+        initRobotDrive()
+        sendRobotDriveCommand('left', leftSpeed)
+        #time.sleep(1.2)
+        #sendRobotDriveCommand('forward')
+        #time.sleep(1.2)
+        #sendRobotDriveCommand('forward')
+        say('Did ' + phraseText, 2)
+        return
+    if action == 'doRight':
+        initRobotDrive()
+        sendRobotDriveCommand('right', rightSpeed)
+        #time.sleep(1.2)
+        #sendRobotDriveCommand('forward')
+        #time.sleep(1.2)
+        #sendRobotDriveCommand('forward')
+        say('Did ' + phraseText, 2)
+        return
+
+
+
+
 
     say('Do not know action ' + action + '.', 1.5)
 
@@ -601,17 +660,19 @@ def doGoodBye(phraseText):
 
 ##################################################################
 def offerHelp():
-
-    say('You may say, ',0.1)
     sayPhrases = True
     listPhrasesTrained(sayPhrases)
 
 ##################################################################
+def sayCurrentTime():
+    say(datetime.now().strftime('%H:%M'),1.5)
+
+##################################################################
 def wallaceIndicatesReadiness():
 
-    print('Wallace is ready.')
+    #print('Wallace is ready.')
 
-    say('Wallace is ready.  Do you need help?',2)
+    say('Wallace is ready.  Do you need help?',1)
     justGetYesOrNoResponse = True
 
     doHelp, tryAgainForYesNo, gotClearYesOrNo = getIsThisCorrectUserInput(justGetYesOrNoResponse, False)
@@ -644,38 +705,59 @@ def wallaceIndicatesReadiness():
 
 
 ##################################################################
-def initRobotDrive():
-    respText = sendRobotUrl('/arduino/api/clr.usb.err')
+def sendRobotUrl(command):
 
+    global robotDriveServerConnectionRefusedNumberOfTimes
+
+    try:
+        response = requests.get(robotDriveUrl + command, timeout=httpTimeout)
+        robotDriveServerConnectionRefusedNumberOfTimes = 0;
+        return response.text
+    except (socket.timeout, urllib3.exceptions.ReadTimeoutError, requests.exceptions.ReadTimeout):
+        return 'Timeout'
+    except (requests.exceptions.ConnectionError, ConnectionRefusedError):
+        time.sleep(0.20)
+        robotDriveServerConnectionRefusedNumberOfTimes += 1;
+        if robotDriveServerConnectionRefusedNumberOfTimes > 3:
+            saveJsonAndCleanUp()
+        return 'Refused'
+    except:
+        track = traceback.format_exc()
+        print(track)
+        say('Other Communication Error', 0)
+        saveJsonAndCleanUp()
+
+
+##################################################################
+def initRobotDrive():
+    respText = sendRobotUrl('/nodejs/api/data')
+    if 'Refused' in respText:
+        say(respText, 1)
+        return
+    if '"volts":-1' in respText:
+        say('Arduino is Up, but Not Roboclaw', 0)
+        saveJsonAndCleanUp()
+    time.sleep(0.5)
+    respText = sendRobotUrl('/arduino/api/clr.usb.err')
     if 'Cmd Sent To Arduino' in respText:
-        respText = sendRobotUrl('/nodejs/api/stop.console.log.response')
-        if 'Cmd Sent To Arduino' in respText:
-            say('Robot Is Ready.',1)
+        time.sleep(1)
+        respText = sendRobotUrl('/nodejs/api/data')
+        if 'NEEDINIT' in respText:
+            return False
+        say('Robot Is Ready.', 1.5)
         return True
     else:
         print(respText)
-        say(respText,1)
-
+        say('Error. Error.', 2)
     return False
 
 ##################################################################
-def sendRobotUrl(command):
-    try:
-        response = requests.get(robotDriveUrl + command, timeout=1.5)
-        return response.text
-    except (socket.timeout, urllib3.exceptions.ReadTimeoutError, requests.exceptions.ReadTimeout):
-        #track = traceback.format_exc()
-        #print(track)
-        say('The request timed out.',2)
-        return ''
-
-##################################################################
-def sendRobotDriveCommand(direction):
+def sendRobotDriveCommand(direction, mySpeed):
     global robotIsReadyToDrive
     if not robotIsReadyToDrive:
         robotIsReadyToDrive = initRobotDrive()
     if robotIsReadyToDrive:
-        respText = sendRobotUrl('/arduino/api/' + direction + '/100')
+        respText = sendRobotUrl('/arduino/api/' + direction + '/' + str(mySpeed))
         if not 'Cmd Sent To Arduino' in respText:
             print(respText)
             say(respText,2)
@@ -699,12 +781,12 @@ def sendRobotNodeJsCommand(command, resultExpected, sayOnGoodResult):
 ##################################################################
 def actOnKnownPhrases(phraseText, metaDataForLatestRecordedPhrase):
 
-    global robotIsReadyToDrive
+    #global robotIsReadyToDrive
 
     try:
         conversation = conversationMap[phraseText]
     except (KeyError):
-        say('Do not know conversation for ' + phraseText, 2)
+        say('Do not know conversation for ' + phraseText, 2.5)
         return
     except:
         track = traceback.format_exc()
@@ -715,7 +797,7 @@ def actOnKnownPhrases(phraseText, metaDataForLatestRecordedPhrase):
         return
 
     if conversation['response'] != 'none' and conversation['response'] != '':
-        say(conversation['response'], 1.5)
+        say(conversation['response'], int(conversation['delay']))
         if conversation['action'] == 'none' or conversation['action'] == '':
             return
 
@@ -723,30 +805,7 @@ def actOnKnownPhrases(phraseText, metaDataForLatestRecordedPhrase):
         doAction(conversation['action'], phraseText)
         return
 
-    if phraseText == 'hello wallace':
-        say('Hello, how are you today?', 1.5)
-        return
-    if phraseText == 'thank you wallace':
-        say('You are welcome.', 1.5)
-        return
-    if phraseText == 'fine thank you':
-        say('Good show.', 1.5)
-        return
-    if phraseText == 'what time is it':
-        say(datetime.now().strftime('%H:%M'))
-        return
-
-    if phraseText == 'list please':
-        sayPhrases = False
-        listPhrasesTrained(sayPhrases)
-        return
-
-
-    if phraseText == 'init robot drive':
-        robotIsReadyToDrive = initRobotDrive()
-        return
-
-
+    """
     if phraseText == 'forward':
         sendRobotDriveCommand('forward')
         time.sleep(1.2)
@@ -787,6 +846,7 @@ def actOnKnownPhrases(phraseText, metaDataForLatestRecordedPhrase):
         expected = 'volts\":12'
         sayOnGoodResult = 'Robot motors are good.'
         sendRobotNodeJsCommand('data', expected, sayOnGoodResult)
+    """
 
     say('Do not know what to do with ' + phraseText, 2)
 
@@ -865,7 +925,7 @@ while not quitProgram:
             else:
                 print(f.renderText(bestPhraseMatch['phrase']))
                 #say('Did you say ' + bestPhraseMatch['phrase'] + '?')
-                say('Did you say ' + bestPhraseMatch['phrase'] + '?"', 1)
+                say('Did you say ' + bestPhraseMatch['phrase'] + '?"', 1.5)
                 justGetYesOrNoResponse = False
                 isThisCorrect, tryAgainForYesNo, gotClearYesOrNo = getIsThisCorrectUserInput(justGetYesOrNoResponse, False)
                 if not tryAgainForYesNo and isThisCorrect:

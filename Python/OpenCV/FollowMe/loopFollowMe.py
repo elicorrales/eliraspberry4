@@ -125,7 +125,7 @@ def sendRobotUrl(command):
         track = traceback.format_exc()
         print(track)
         say('Other Communication Error')
-        cleanup()
+        cleanUp()
 
 ##################################################################
 def initRobotDrive():
