@@ -604,7 +604,6 @@ def doAction(action, phraseText):
         initRobotDrive()
         return
     if action == 'doForward':
-        initRobotDrive()
         sendRobotDriveCommand('forward', fwdBakSpeed)
         #time.sleep(1.2)
         #sendRobotDriveCommand('forward')
@@ -613,7 +612,6 @@ def doAction(action, phraseText):
         say('Did ' + phraseText, 2)
         return
     if action == 'doBackward':
-        initRobotDrive()
         sendRobotDriveCommand('backward', fwdBakSpeed)
         #time.sleep(1.2)
         #sendRobotDriveCommand('forward')
@@ -622,7 +620,6 @@ def doAction(action, phraseText):
         say('Did ' + phraseText, 2)
         return
     if action == 'doLeft':
-        initRobotDrive()
         sendRobotDriveCommand('left', leftSpeed)
         #time.sleep(1.2)
         #sendRobotDriveCommand('forward')
@@ -631,7 +628,6 @@ def doAction(action, phraseText):
         say('Did ' + phraseText, 2)
         return
     if action == 'doRight':
-        initRobotDrive()
         sendRobotDriveCommand('right', rightSpeed)
         #time.sleep(1.2)
         #sendRobotDriveCommand('forward')
@@ -730,6 +726,9 @@ def sendRobotUrl(command):
 
 ##################################################################
 def initRobotDrive():
+    global robotIsReadyToDrive
+    if robotIsReadyToDrive:
+        return True
     respText = sendRobotUrl('/nodejs/api/data')
     if 'Refused' in respText:
         say(respText, 1)
