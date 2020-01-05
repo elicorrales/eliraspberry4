@@ -1,0 +1,5 @@
+
+
+python train.phrases.py --semi-hands-free --http-timeout=0.6 --lSpeed=51 --rSpeed=61 --fbSpeed=48
+
+pythonOpenCV loopFollowMe.py --width=640 --height=480 --FPS=20 --limit-buffer --http-timeout=0.6 --lSpeed=51 --rSpeed=61 --fbSpeed=48 --loopDelay=0.08 --min-dist=160 --max-dist=130 #--speak
