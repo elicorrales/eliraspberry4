@@ -150,7 +150,7 @@ def getIsThisCorrectUserInput(justGetYesOrNoResponse, triedAgainForYesNo):
             difference, numMatches, bestMatch = findBestMatch(metaData, yesNoQuitArray)
             print('difference: ', difference, ', numMatches: ', numMatches)
 
-        if (difference < 50 and numMatches > 5) or (difference < 300 and numMatches > 10)  or (difference < 350 and numMatches > 14):
+        if (difference < 50 and numMatches > 5) or (difference < 300 and numMatches > 10)  or (difference < 400 and numMatches > 13):
 
             newYesNoQuitAddedThisTime = True
             print('Found good match...')
@@ -758,13 +758,13 @@ def sendPostMessage(completeUriString):
 
 
 ##################################################################
-def requestUpdateOnRobotStatus():
+def initRobotDrive():
 
-    possibleJsonResp = sendPostMessage('/command?uri=/nodejs/api/data')
-    if possibleJsonResp == 'Refused':
-        print('requestUpdateOnRobotStatus() returning \"Refused\"')
-        return possibleJsonResp
+    print('')
+    print('initRobotDrive() : sending message to clr.usb.err...')
+    print('')
 
+    possibleJsonResp = sendPostMessage('/command?uri=/arduino/api/clr.usb.err')
     try:
         response = json.loads(possibleJsonResp)
         print(response)
@@ -776,84 +776,42 @@ def requestUpdateOnRobotStatus():
         print('')
         saveJsonAndCleanUp()
 
-    if 'error' in response.keys():
+    print('')
+    print('initRobotDrive() : waiting...')
+    print('')
+    time.sleep(3)
+
+    print('')
+    print('initRobotDrive() : getting (hopefully latest updated robot status)...')
+    print('')
+
+    possibleJsonResp = sendGetMessage('/status')
+    try:
+        response = json.loads(possibleJsonResp)
+        print(response)
+    except:
         track = traceback.format_exc()
         print(track)
         print('')
-        print(response)
+        print(possibleJsonResp)
         print('')
         saveJsonAndCleanUp()
 
-
-    time.sleep(2)
-    
- 
-    if 'msg' in response.keys() and response['msg'] == 'ok':
-        possibleJsonResp = sendGetMessage('/status')
-        if possibleJsonResp == 'Refused':
-            print('requestUpdateOnRobotStatus() returning \"Refused\"')
-            return possibleJsonResp
-        try:
-            response = json.loads(possibleJsonResp)
-            print(response)
-        except:
-            track = traceback.format_exc()
-            print(track)
-            print('')
-            print(possibleJsonResp)
-            print('')
-            saveJsonAndCleanUp()
-
-    if 'status' in response.keys():
-        print('requestUpdateOnRobotStatus() returning response[\'status\']')
-        return response['status']
-
-    return response
-
-
-##################################################################
-def initRobotDrive():
-
     print('')
-    print('initRobotDrive()')
+    print('initRobotDrive() : clear the previous messaging command...')
     print('')
 
-    response = requestUpdateOnRobotStatus()
-
-    if response == 'Refused':
-        say('Robot refused.', 1.5)
-        return False
-
-    if response != '':
-        possibleJsonResp = sendPostMessage('/command?uri=/arduino/api/clr.usb.err')
-        try:
-            response = json.loads(possibleJsonResp)
-            print(response)
-        except:
-            track = traceback.format_exc()
-            print(track)
-            print('')
-            print(possibleJsonResp)
-            print('')
-            saveJsonAndCleanUp()
-
-        time.sleep(1)
-
-        possibleJsonResp = sendPostMessage('/command?uri=/nodejs/api/data')
-        try:
-            response = json.loads(possibleJsonResp)
-            print(response)
-        except:
-            track = traceback.format_exc()
-            print(track)
-            print('')
-            print(possibleJsonResp)
-            print('')
-            saveJsonAndCleanUp()
-    else:
-        say('Robot is NOT ready.', 1.5)
-        say('Robot empty status.', 1.5)
-        return False
+    possibleJsonResp = sendPostMessage('/command?uri=')
+    try:
+        response = json.loads(possibleJsonResp)
+        print(response)
+    except:
+        track = traceback.format_exc()
+        print(track)
+        print('')
+        print(possibleJsonResp)
+        print('')
+        saveJsonAndCleanUp()
 
     return False
 
