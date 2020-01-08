@@ -158,21 +158,6 @@ def sendRobotDriveCommand(direction, mySpeed):
             print(respText)
             say(respText)
 
-##################################################################
-def sendRobotNodeJsCommand(command, resultExpected, sayOnGoodResult):
-    global robotIsReadyToDrive
-    if not robotIsReadyToDrive:
-        robotIsReadyToDrive = initRobotDrive()
-    if robotIsReadyToDrive:
-        respText = sendRobotUrl('/nodejs/api/' + command)
-        if not 'volts\":12' in respText:
-            print(respText)
-            say(respText)
-        else:
-            say(sayOnGoodResult)
-
-
-
 
 ##################################################################
 def moveLeftOrRightToCenterOnFace(deltaLastTimeMoved, deltaLeftRight, leftEdge, rightEdge):

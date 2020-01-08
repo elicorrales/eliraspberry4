@@ -27,12 +27,22 @@ const mainGetHandler = (request, response) => {
     console.log('client request: mainGetHandler: ' + request.path);
 
     if (request.path === '/messaging/api/command') {
-        response.status(200).send('{\"command\":\"' + latestCommandToRobotDrive + '\"}');
+        let command = {}
+        command.command = latestCommandToRobotDrive;
+        console.log(command);
+        //console.log('{\"command\":\"' + latestCommandToRobotDrive + '\"}');
+        //response.status(200).send('{\"command\":\"' + latestCommandToRobotDrive + '\"}');
+        response.status(200).send(command);
         return;
     }
 
     if (request.path === '/messaging/api/status') {
-        response.status(200).send('{\"status\":\"' + latestStatusFromRobotDrive + '\"}');
+        let status = {}
+        status.status = latestStatusFromRobotDrive;
+        //console.log('{\"status\":\"' + latestStatusFromRobotDrive + '\"}');
+        //response.status(200).send('{\"status\":\"' + latestStatusFromRobotDrive + '\"}');
+        console.log(status);
+        response.status(200).send(status);
         return;
     }
 
@@ -50,17 +60,39 @@ const mainPostHandler = (request, response) => {
 
 
     if (request.path === '/messaging/api/command') {
-        console.log('query.uri:' + request.query.uri);
-        console.log('query.params:' + JSON.stringify(request.params));
+        //console.log('query.uri:' + request.query.uri);
+        //console.log('query.params:' + JSON.stringify(request.params));
         latestCommandToRobotDrive = request.query.uri;
-        response.status(201).send('{\"msg\":\"ok\"}');
+        let msg = {}
+        msg.msg = 'ok';
+        //response.status(201).send('{\"msg\":\"ok\"}');
+        response.status(201).send(msg);
+        return;
+    }
+
+
+    if (request.path === '/messaging/api/status') {
+        //console.log('');
+        //console.log('');
+        //console.log(request.body);
+        //console.log('');
+        //console.log('request.query.uri:' + request.query.uri);
+        //console.log('request.params:' + JSON.stringify(request.params));
+        latestStatusFromRobotDrive = request.body;
+        let msg = {}
+        msg.msg = 'ok';
+        //response.status(201).send('{\"msg\":\"ok\"}');
+        response.status(201).send(msg);
         return;
     }
 
 
     console.log(request.method);
     console.log(request.params);
-    response.status(500).send('{\"error\":\"Error: You requested ' + request.path + '. Unknown.\"}');
+    let error = {}
+    error.error = 'Error: You requested ' + request.path + '. Unknown.';
+    //response.status(500).send('{\"error\":\"Error: You requested ' + request.path + '. Unknown.\"}');
+    response.status(500).send(error);
 }
 app.post('/messaging/api/*', mainPostHandler);
 
@@ -68,9 +100,10 @@ app.post('/messaging/api/*', mainPostHandler);
 
 const messagingApiBad = (request, response) => {
     console.log('client request: messagingApiBad : ' + request.path);
-    console.log(request.method);
-    console.log(request.params);
-    response.status(404).send('{\"error\":\"You requested ' + request.path + '. You need /api/blah.blah after that.\"}');
+    let error = {}
+    error.error = 'You requested ' + request.path + '. You need /api/blah.blah after that.';
+    //response.status(404).send('{\"error\":\"You requested ' + request.path + '. You need /api/blah.blah after that.\"}');
+    response.status(404).send(error);
 }
 app.get('/messaging/api', messagingApiBad);
 app.post('/messaging/api', messagingApiBad);
@@ -78,9 +111,10 @@ app.post('/messaging/api', messagingApiBad);
 
 const messagingBad = (request, response) => {
     console.log('client request: messagingBad : ' + request.path);
-    console.log(request.method);
-    console.log(request.params);
-    response.status(404).send('{\"error\":\"You requested ' + request.path + '. You need /api/blah blah after that.\"}');
+    let error = {}
+    error.error = 'You requested ' + request.path + '. You need /api/blah blah after that.';
+    //response.status(404).send('{\"error\":\"You requested ' + request.path + '. You need /api/blah blah after that.\"}');
+    response.status(404).send(error);
 }
 app.get('/messaging', messagingBad);
 app.post('/messaging', messagingBad);
@@ -88,9 +122,10 @@ app.post('/messaging', messagingBad);
 
 const badRoot = (request, response) => {
     console.log('client request: badRoot : ' + request.path);
-    console.log(request.method);
-    console.log(request.params);
-    response.status(404).send('{\"error\":\"You requested ' + request.path + '. You need /messaging/api/blah blah after that.\"}');
+    let error = {}
+    error.error = 'You requested ' + request.path + '. You need /messaging/api/blah blah after that.';
+    //response.status(404).send('{\"error\":\"You requested ' + request.path + '. You need /messaging/api/blah blah after that.\"}');
+    response.status(404).send(error);
 }
 app.get('/', badRoot);
 app.post('/', badRoot);

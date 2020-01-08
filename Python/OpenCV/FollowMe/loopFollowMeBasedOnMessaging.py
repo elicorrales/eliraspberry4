@@ -133,13 +133,19 @@ def sendGetMessage(completeUriString):
 
 
 ##################################################################
-def sendPostMessage(completeUriString):
+def sendPostMessage(completeUriString, dataString = None):
 
     global messagingServerConnectionRefusedNumberOfTimes
 
     try:
-        print(robotMessagingUrl + completeUriString)
-        response = requests.post(url=robotMessagingUrl + completeUriString, timeout=httpTimeout)
+        if dataString != None:
+            headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
+            response = requests.post(url=robotMessagingUrl + completeUriString, data=dataString, headers=headers, timeout=httpTimeout)
+            return response.text
+        else:
+            print(robotMessagingUrl + completeUriString)
+            response = requests.post(url=robotMessagingUrl + completeUriString, timeout=httpTimeout)
+            return response.text
 
         messagingServerConnectionRefusedNumberOfTimes = 0;
         return response.text
@@ -160,12 +166,31 @@ def sendPostMessage(completeUriString):
 
 ##################################################################
 def executeCommandIfAnyFromMessaging():
-        possibleJsonResponse = sendGetMessage('/command')
-        response = json.loads(possibleJsonResponse)
-        #print(response)
-        if 'command' in response.keys():
-            response = sendRobotUrl(response['command'])
-            print('response back from robot command ' + response)
+        possibleJsonResp = sendGetMessage('/command')
+        try:
+            response = json.loads(possibleJsonResp)
+            #print(response)
+            
+            if 'command' in response.keys():
+                if response['command'] != '':
+                    response = sendRobotUrl(response['command'])
+                    possibleJsonResp = sendPostMessage('/status', response)
+                    print(possibleJsonResp)
+                    cleanUp()
+            else:
+                print('response back from get message(command): ')
+                print(response)
+                cleanUp()
+        except:
+            track = traceback.format_exc()
+            print(track)
+            print('')
+            print('')
+            print('')
+            print('response back from command request : ' + possibleJsonResp)
+            print('')
+            print('')
+            cleanUp()
 
 
 ##################################################################
@@ -222,21 +247,6 @@ def sendRobotDriveCommand(direction, mySpeed):
         if not 'Cmd Sent To Arduino' in respText:
             print(respText)
             say(respText)
-
-##################################################################
-def sendRobotNodeJsCommand(command, resultExpected, sayOnGoodResult):
-    global robotIsReadyToDrive
-    if not robotIsReadyToDrive:
-        robotIsReadyToDrive = initRobotDrive()
-    if robotIsReadyToDrive:
-        respText = sendRobotUrl('/nodejs/api/' + command)
-        if not 'volts\":12' in respText:
-            print(respText)
-            say(respText)
-        else:
-            say(sayOnGoodResult)
-
-
 
 
 ##################################################################
