@@ -150,7 +150,7 @@ def getIsThisCorrectUserInput(justGetYesOrNoResponse, triedAgainForYesNo):
             difference, numMatches, bestMatch = findBestMatch(metaData, yesNoQuitArray)
             print('difference: ', difference, ', numMatches: ', numMatches)
 
-        if (difference < 300 and numMatches > 10) or (difference < 50 and numMatches > 5):
+        if (difference < 50 and numMatches > 5) or (difference < 300 and numMatches > 10)  or (difference < 350 and numMatches > 14):
 
             newYesNoQuitAddedThisTime = True
             print('Found good match...')
@@ -791,7 +791,8 @@ def requestUpdateOnRobotStatus():
     if 'msg' in response.keys() and response['msg'] == 'ok':
         possibleJsonResp = sendGetMessage('/status')
         if possibleJsonResp == 'Refused':
-            return False
+            print('requestUpdateOnRobotStatus() returning \"Refused\"')
+            return possibleJsonResp
         try:
             response = json.loads(possibleJsonResp)
             print(response)
@@ -804,6 +805,7 @@ def requestUpdateOnRobotStatus():
             saveJsonAndCleanUp()
 
     if 'status' in response.keys():
+        print('requestUpdateOnRobotStatus() returning response[\'status\']')
         return response['status']
 
     return response
@@ -850,6 +852,7 @@ def initRobotDrive():
             saveJsonAndCleanUp()
     else:
         say('Robot is NOT ready.', 1.5)
+        say('Robot empty status.', 1.5)
         return False
 
     return False
