@@ -157,6 +157,7 @@ def sendPostMessage(completeUriString):
         say('Other Communication Error', 0)
         cleanUp()
 
+
 ##################################################################
 def executeCommandIfAnyFromMessaging():
         possibleJsonResponse = sendGetMessage('/command')
@@ -189,6 +190,7 @@ def sendRobotUrl(command):
         print(track)
         say('Other Communication Error')
         cleanUp()
+
 
 ##################################################################
 def initRobotDrive():
@@ -331,6 +333,7 @@ if cap.isOpened:
             initCamera()
 
         faces = face_cascade.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5)
+
 
         if len(faces) < 1:
             if not noFaceDetected:
