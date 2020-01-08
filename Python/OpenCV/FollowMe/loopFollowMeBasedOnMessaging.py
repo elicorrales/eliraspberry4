@@ -139,6 +139,10 @@ def sendPostMessage(completeUriString, dataString = None):
 
     try:
         if dataString != None:
+            print('sendPostMessage:')
+            print(completeUriString)
+            print(dataString)
+
             headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
             response = requests.post(url=robotMessagingUrl + completeUriString, data=dataString, headers=headers, timeout=httpTimeout)
             return response.text
@@ -163,34 +167,108 @@ def sendPostMessage(completeUriString, dataString = None):
         say('Other Communication Error', 0)
         cleanUp()
 
+##################################################################
+def tryToGetJsonResponseFromRobotStatus():
+
+    print('')
+    print('')
+    print('')
+    print('tryToGetJsonResponseFromRobotStatus()')
+    print('')
+    print('')
+    print('')
+
+    possibleJsonResp = sendRobotUrl('/nodejs/api/data')
+
+    if '"volts":-1' in possibleJsonResp:
+        say('Arduino is Up, but Not Roboclaw')
+        possibleJsonResp = sendPostMessage('/status', possibleJsonResp)
+        print(possibleJsonResp)
+        cleanUp()
+
+    try:
+        response = json.loads(possibleJsonResp)
+    except:
+        track = traceback.format_exc()
+        print(track)
+        print('')
+        print('')
+        print('')
+        print('error response back from to getting robot status: ' + possibleJsonResp)
+        print('')
+        print('')
+        cleanUp()
+
+    return response
+
+##################################################################
+def tryToGetLatestAndGoodStatusResponseFromRobot():
+
+    tries = 0
+    while tries < 2:
+        response = tryToGetJsonResponseFromRobotStatus()
+        print(response)
+        if 'error' in response.keys():
+            if response['error'] == '':
+                break
+        tries += 1
+        time.sleep(0.2)
+
+    return response
+
+##################################################################
+def getRobotStatusAndUpdateMessaging():
+
+    response = tryToGetLatestAndGoodStatusResponseFromRobot()
+
+    possibleJsonResp = sendPostMessage('/status', response)
+
+    return possibleJsonResp
+
+##################################################################
+def getMessagingCommandAndSendToRobot():
+
+    possibleJsonResp = sendGetMessage('/command')
+    try:
+        response = json.loads(possibleJsonResp)
+    except:
+        track = traceback.format_exc()
+        print(track)
+        print('')
+        print('')
+        print('')
+        print('error response back from messaging request to get latest command to execute: ' + possibleJsonResp)
+        print('')
+        print('')
+        cleanUp()
+
+        
+    if 'command' in response.keys():
+        if response['command'] != '':
+
+            print('')
+            print('')
+            print('')
+            print('getMessagingCommandAndSnedToRobot()')
+            print('')
+            print('')
+            print('')
+
+            response = sendRobotUrl(response['command'])
+            if 'Cmd Sent' in response:
+                getRobotStatusAndUpdateMessaging()
+            else:
+                cleanUp()
+    else:
+        print('response back from get message(command): ')
+        print(response)
+        cleanUp()
 
 ##################################################################
 def executeCommandIfAnyFromMessaging():
-        possibleJsonResp = sendGetMessage('/command')
-        try:
-            response = json.loads(possibleJsonResp)
-            #print(response)
-            
-            if 'command' in response.keys():
-                if response['command'] != '':
-                    response = sendRobotUrl(response['command'])
-                    possibleJsonResp = sendPostMessage('/status', response)
-                    print(possibleJsonResp)
-                    cleanUp()
-            else:
-                print('response back from get message(command): ')
-                print(response)
-                cleanUp()
-        except:
-            track = traceback.format_exc()
-            print(track)
-            print('')
-            print('')
-            print('')
-            print('response back from command request : ' + possibleJsonResp)
-            print('')
-            print('')
-            cleanUp()
+
+    getMessagingCommandAndSendToRobot()
+
 
 
 ##################################################################

@@ -32,7 +32,7 @@ const mainGetHandler = (request, response) => {
         console.log(command);
         //console.log('{\"command\":\"' + latestCommandToRobotDrive + '\"}');
         //response.status(200).send('{\"command\":\"' + latestCommandToRobotDrive + '\"}');
-        response.status(200).send(command);
+        response.status(200).send(JSON.stringify(command));
         return;
     }
 
@@ -42,7 +42,7 @@ const mainGetHandler = (request, response) => {
         //console.log('{\"status\":\"' + latestStatusFromRobotDrive + '\"}');
         //response.status(200).send('{\"status\":\"' + latestStatusFromRobotDrive + '\"}');
         console.log(status);
-        response.status(200).send(status);
+        response.status(200).send(JSON.stringify(status));
         return;
     }
 
@@ -50,7 +50,10 @@ const mainGetHandler = (request, response) => {
 
     console.log(request.method);
     console.log(request.params);
-    response.status(500).send('{\"error\":\"Error: You requested ' + request.path + '. Unknown.\"}');
+    let error = {}
+    error.error = 'Error: You requested ' + request.path + '. Unknown.';
+    //response.status(500).send('{\"error\":\"Error: You requested ' + request.path + '. Unknown.\"}');
+    response.status(500).send(error);
 }
 app.get('/messaging/api/*', mainGetHandler);
 
@@ -60,8 +63,9 @@ const mainPostHandler = (request, response) => {
 
 
     if (request.path === '/messaging/api/command') {
-        //console.log('query.uri:' + request.query.uri);
-        //console.log('query.params:' + JSON.stringify(request.params));
+        console.log('query.query.uri:' + request.query.uri);
+        if (request.params !== undefined) console.log('request.params:' + JSON.stringify(request.params));
+        if (request.body !== undefined) console.log('request.body:' + JSON.stringify(request.body));
         latestCommandToRobotDrive = request.query.uri;
         let msg = {}
         msg.msg = 'ok';
@@ -75,6 +79,7 @@ const mainPostHandler = (request, response) => {
         //console.log('');
         //console.log('');
         //console.log(request.body);
+        if (request.body !== undefined) console.log(request.body);
         //console.log('');
         //console.log('request.query.uri:' + request.query.uri);
         //console.log('request.params:' + JSON.stringify(request.params));
