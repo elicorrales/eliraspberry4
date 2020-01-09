@@ -622,17 +622,23 @@ def doAction(action, successText = 'Success', successDelay = 1, failureText = 'F
             say('Robot Init Error', 1.5)
         return
     if action == 'doDoYouSeeMe':
-        status = getRobotStatus()
+        getLatestUpdatedStatus = True
+        status = getRobotStatus(getLatestUpdatedStatus)
         print('')
         print(status)
         print('')
-        if 'visual' in status.keys():
+        if status == 'Refused':
+            say('Refused', successDelay)
+
+        elif status == None:
+            say('Status None.', successDelay)
+
+        elif status != None and 'visual' in status.keys():
             visual = status['visual']
             if 'faceDetected' in visual.keys() and visual['faceDetected'] == True:
                 say(successText, successDelay)
             else:
                 say(failureText, successDelay)
-        sys.exit(1)
         return
 
     if action == 'doForward':
@@ -790,7 +796,7 @@ def clearMessagingCommand():
     print('initRobotDrive() : clear the previous messaging command...')
     print('')
 
-    possibleJsonResp = sendPostMessage('/command?uri=')
+    possibleJsonResp = sendPostMessage('/robot.command?uri=&from=voice.control')
     try:
         response = json.loads(possibleJsonResp)
         print(response)
@@ -806,8 +812,33 @@ def clearMessagingCommand():
         saveJsonAndCleanUp()
 
 ##################################################################
-def getRobotStatus():
-    possibleJsonResp = sendGetMessage('/status')
+def getRobotStatus(getLatestUpdatedStatus=False):
+
+    if getLatestUpdatedStatus:
+        possibleJsonResp = sendPostMessage('/robot.command?uri=/nodejs/api/data&from=voice.control')
+        if possibleJsonResp == 'Refused':
+            say('Refused',0)
+            saveJsonAndCleanUp()
+        try:
+            response = json.loads(possibleJsonResp)
+            print(response)
+        except:
+            track = traceback.format_exc()
+            print(track)
+            print('')
+            print(possibleJsonResp)
+            print('')
+            saveJsonAndCleanUp()
+
+        time.sleep(2)
+
+        clearMessagingCommand()
+
+
+    possibleJsonResp = sendGetMessage('/robot.status?from=voice.control')
+    if 'Refused' in possibleJsonResp:
+        status = 'Refused'
+        return status
     try:
         response = json.loads(possibleJsonResp)
         #print(response)
@@ -817,7 +848,11 @@ def getRobotStatus():
         print('')
         print(possibleJsonResp)
         print('')
-        saveJsonAndCleanUp()
+        print('NO STATUS')
+        print('')
+        #saveJsonAndCleanUp()
+        status = None
+        return status
 
     if 'status' in response.keys() and response['status'] != '':
         status = response['status']
@@ -830,7 +865,7 @@ def getRobotStatus():
 def initRobotDrive():
 
 
-    possibleJsonResp = sendPostMessage('/command?uri=/arduino/api/clr.usb.err')
+    possibleJsonResp = sendPostMessage('/robot.command?uri=/arduino/api/clr.usb.err&from=voice.control')
     if possibleJsonResp == 'Refused':
         say('Refused',0)
         saveJsonAndCleanUp()
@@ -999,7 +1034,10 @@ while not quitProgram:
             else:
                 print(f.renderText(bestPhraseMatch['phrase']))
                 #say('Did you say ' + bestPhraseMatch['phrase'] + '?')
-                say('Did you say ' + bestPhrase + '?"', 1.5)
+                if verify != None and verify != 'assume':
+                    say(verify, 1.5)
+                else:
+                    say('Did you say ' + bestPhrase + '?"', 1.5)
                 justGetYesOrNoResponse = False
                 isThisCorrect, tryAgainForYesNo, gotClearYesOrNo = getIsThisCorrectUserInput(justGetYesOrNoResponse, False)
                 if not tryAgainForYesNo and isThisCorrect:

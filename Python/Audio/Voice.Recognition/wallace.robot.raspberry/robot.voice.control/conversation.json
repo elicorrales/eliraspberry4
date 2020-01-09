@@ -1,5 +1,5 @@
 {
-    "noise":{"firstresp":"", "delay":0, "action":"", "verify":"assume","vfylevel":0},
+    "noise":{"firstresp":"", "delay":0,"verify":"assume","action":"","vfylevel":0},
     "hello wallace":{"firstresp":"hello how are you today?", "delay":2,"action":"none"},
     "fine thank you":{"firstresp":"Good show.", "delay":1.5, "action":"none"},
     "thank you wallace":{"firstresp":"You are welcome.", "delay":1.5, "action":"none"},
@@ -10,7 +10,7 @@
     "help please":{"firstresp":"", "delay":0, "action":"doOfferHelp"},
     "list please":{"firstresp":"", "delay":0, "action":"doListPhrasesTrained"},
     "init robot drive":{"firstresp":"Very well.", "delay":1, "action":"doInitRobotDrive", "successresp":"Robot ready."},
-    "do you see me":{"firstresp":"wait","delay":0.5,"action":"doDoYouSeeMe","successresp":"I see you.", "successdelay":1, "failresp":"No."},
+    "do you see me":{"firstresp":"wait","delay":0.5,"verify":"Do I see you?","action":"doDoYouSeeMe","successresp":"I see you.", "successdelay":1, "failresp":"No."},
     "status please":{"firstresp":"not implemented", "delay":1, "action":""},
     "what time is it":{"firstresp":"", "delay":0, "action":"doCurrentTime"},
     "wallace":{"firstresp":"how may I help you?", "delay":2, "action":"none"},
