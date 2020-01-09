@@ -139,12 +139,10 @@ def sendPostMessage(completeUriString, dataString = None):
 
     try:
         if dataString != None:
-            print('sendPostMessage:')
-            print(completeUriString)
-            print(dataString)
-
+            data = json.dumps(dataString)
+            #headers = {'Content-type': 'application/json, text/plain', 'Accept': 'text/plain, application/json'}
             headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
-            response = requests.post(url=robotMessagingUrl + completeUriString, data=dataString, headers=headers, timeout=httpTimeout)
+            response = requests.post(url=robotMessagingUrl + completeUriString, data=data, headers=headers, timeout=httpTimeout)
             return response.text
         else:
             print(robotMessagingUrl + completeUriString)
@@ -169,14 +167,6 @@ def sendPostMessage(completeUriString, dataString = None):
 
 ##################################################################
 def tryToGetJsonResponseFromRobotStatus():
-
-    print('')
-    print('')
-    print('')
-    print('tryToGetJsonResponseFromRobotStatus()')
-    print('')
-    print('')
-    print('')
 
     possibleJsonResp = sendRobotUrl('/nodejs/api/data')
 
@@ -220,6 +210,40 @@ def tryToGetLatestAndGoodStatusResponseFromRobot():
 def getRobotStatusAndUpdateMessaging():
 
     response = tryToGetLatestAndGoodStatusResponseFromRobot()
+    print('')
+    print('')
+    print('')
+    print('')
+    print(response)
+    print('')
+    print('')
+    print('')
+    print('')
+
+    visual = {
+            "noFaceDetected": noFaceDetected,
+            "faceDetected": faceDetected,
+            "faceCentered": faceCentered,
+            "tooManyFaces": tooManyFaces,
+            "faceMovedLeft": faceMovedLeft,
+            "faceMovedRight": faceMovedRight,
+            "faceTooClose": faceTooClose,
+            "faceTooFar": faceTooFar,
+            "faceIsJustRight": faceIsJustRight
+    }
+    response['visual'] = visual
+
+    print('')
+    print('')
+    print('')
+    print('')
+    print(response)
+    print('')
+    print('')
+    print('')
+    print('')
+
+    #sys.exit(1)
 
     possibleJsonResp = sendPostMessage('/status', response)
 
@@ -246,14 +270,6 @@ def getMessagingCommandAndSendToRobot():
     if 'command' in response.keys():
         if response['command'] != '':
 
-            print('')
-            print('')
-            print('')
-            print('getMessagingCommandAndSnedToRobot()')
-            print('')
-            print('')
-            print('')
-
             response = sendRobotUrl(response['command'])
             if 'Cmd Sent' in response:
                 getRobotStatusAndUpdateMessaging()
@@ -263,6 +279,7 @@ def getMessagingCommandAndSendToRobot():
         print('response back from get message(command): ')
         print(response)
         cleanUp()
+
 
 ##################################################################
 def executeCommandIfAnyFromMessaging():
