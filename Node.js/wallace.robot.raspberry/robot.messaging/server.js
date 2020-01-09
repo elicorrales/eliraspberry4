@@ -27,12 +27,22 @@ const mainGetHandler = (request, response) => {
     console.log('client request: mainGetHandler: ' + request.path);
 
     if (request.path === '/messaging/api/command') {
-        let command = {}
-        command.command = latestCommandToRobotDrive;
-        console.log(command);
-        //console.log('{\"command\":\"' + latestCommandToRobotDrive + '\"}');
-        //response.status(200).send('{\"command\":\"' + latestCommandToRobotDrive + '\"}');
-        response.status(200).send(JSON.stringify(command));
+        console.log(latestCommandToRobotDrive);
+        //let command = {}
+        //command.command = latestCommandToRobotDrive;
+        //console.log(command);
+        console.log('{\"command\":\"' + latestCommandToRobotDrive + '\"}');
+        response.status(200).send('{\"command\":\"' + latestCommandToRobotDrive + '\"}');
+        //response.status(200).send(JSON.stringify(command));
+        console.log('')
+        console.log('')
+        console.log('')
+        console.log('')
+        console.log('DONE')
+        console.log('')
+        console.log('')
+        console.log('')
+        console.log('')
         return;
     }
 
@@ -43,6 +53,15 @@ const mainGetHandler = (request, response) => {
         //response.status(200).send('{\"status\":\"' + latestStatusFromRobotDrive + '\"}');
         console.log(status);
         response.status(200).send(JSON.stringify(status));
+        console.log('')
+        console.log('')
+        console.log('')
+        console.log('')
+        console.log('DONE')
+        console.log('')
+        console.log('')
+        console.log('')
+        console.log('')
         return;
     }
 
@@ -67,10 +86,19 @@ const mainPostHandler = (request, response) => {
         if (request.params !== undefined) console.log('request.params:' + JSON.stringify(request.params));
         if (request.body !== undefined) console.log('request.body:' + JSON.stringify(request.body));
         latestCommandToRobotDrive = request.query.uri;
-        let msg = {}
-        msg.msg = 'ok';
-        //response.status(201).send('{\"msg\":\"ok\"}');
-        response.status(201).send(msg);
+        //let msg = {}
+        //msg.msg = 'ok';
+        response.status(201).send('{\"msg\":\"ok\"}');
+        //response.status(201).send(msg);
+        console.log('')
+        console.log('')
+        console.log('')
+        console.log('')
+        console.log('DONE')
+        console.log('')
+        console.log('')
+        console.log('')
+        console.log('')
         return;
     }
 
@@ -84,20 +112,29 @@ const mainPostHandler = (request, response) => {
         //console.log('request.query.uri:' + request.query.uri);
         //console.log('request.params:' + JSON.stringify(request.params));
         latestStatusFromRobotDrive = request.body;
-        let msg = {}
-        msg.msg = 'ok';
-        //response.status(201).send('{\"msg\":\"ok\"}');
-        response.status(201).send(msg);
+        //let msg = {}
+        //msg.msg = 'ok';
+        response.status(201).send('{\"msg\":\"ok\"}');
+        //response.status(201).send(msg);
+        console.log('')
+        console.log('')
+        console.log('')
+        console.log('')
+        console.log('DONE')
+        console.log('')
+        console.log('')
+        console.log('')
+        console.log('')
         return;
     }
 
 
     console.log(request.method);
     console.log(request.params);
-    let error = {}
-    error.error = 'Error: You requested ' + request.path + '. Unknown.';
-    //response.status(500).send('{\"error\":\"Error: You requested ' + request.path + '. Unknown.\"}');
-    response.status(500).send(error);
+    //let error = {}
+    ////error.error = 'Error: You requested ' + request.path + '. Unknown.';
+    response.status(500).send('{\"error\":\"Error: You requested ' + request.path + '. Unknown.\"}');
+    //response.status(500).send(error);
 }
 app.post('/messaging/api/*', mainPostHandler);
 
