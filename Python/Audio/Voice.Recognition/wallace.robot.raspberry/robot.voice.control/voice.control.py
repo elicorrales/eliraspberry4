@@ -150,7 +150,7 @@ def getIsThisCorrectUserInput(justGetYesOrNoResponse, triedAgainForYesNo):
             difference, numMatches, bestMatch = findBestMatch(metaData, yesNoQuitArray)
             print('difference: ', difference, ', numMatches: ', numMatches)
 
-        if (difference < 50 and numMatches > 5) or (difference < 300 and numMatches > 10)  or (difference < 400 and numMatches > 13):
+        if (difference < 50 and numMatches > 5) or (difference < 300 and numMatches > 10)  or (difference < 400 and numMatches > 13) or (difference < 500 and numMatches > 15):
 
             newYesNoQuitAddedThisTime = True
             print('Found good match...')
@@ -171,9 +171,9 @@ def getIsThisCorrectUserInput(justGetYesOrNoResponse, triedAgainForYesNo):
                 tryAgainForYesNo = False
                 isThisCorrect = False
                 if justGetYesOrNoResponse:
-                    userResponse = input('Yes or No <y|n> :')
+                    userResponse = input('Yes or No <y|n|noise> :')
                 else:
-                    userResponse = input('Correct ? <y|n> :')
+                    userResponse = input('Correct ? <y|n|noise> :')
                 if userResponse == 'y':
                     isThisCorrect = True
                     metaData['phrase'] = 'yes'
@@ -185,6 +185,11 @@ def getIsThisCorrectUserInput(justGetYesOrNoResponse, triedAgainForYesNo):
                     yesNoQuitArray.append(metaData)
                     newYesNoQuitAddedThisTime = True
                     gotClearYesOrNo = True
+                elif userResponse == 'noise':
+                    metaData['phrase'] = 'noise'
+                    yesNoQuitArray.append(metaData)
+                    newYesNoQuitAddedThisTime = True
+                    gotClearYesOrNo = False
 
         elif handsFree:
             if not triedAgainForYesNo:
@@ -196,9 +201,9 @@ def getIsThisCorrectUserInput(justGetYesOrNoResponse, triedAgainForYesNo):
 
         else:
             if justGetYesOrNoResponse:
-                userResponse = input('Yes or No <y|n> :')
+                userResponse = input('Yes or No <y|n|noise> :')
             else:
-                userResponse = input('Correct ? <y|n> :')
+                userResponse = input('Correct ? <y|n|noise> :')
             if userResponse == 'y':
                 isThisCorrect = True
                 metaData['phrase'] = 'yes'
@@ -207,6 +212,11 @@ def getIsThisCorrectUserInput(justGetYesOrNoResponse, triedAgainForYesNo):
                 tryAgainForYesNo = False
             elif userResponse == 'n':
                 metaData['phrase'] = 'no'
+                yesNoQuitArray.append(metaData)
+                newYesNoQuitAddedThisTime = True
+                tryAgainForYesNo = False
+            elif userResponse == 'noise':
+                metaData['phrase'] = 'noise'
                 yesNoQuitArray.append(metaData)
                 newYesNoQuitAddedThisTime = True
                 tryAgainForYesNo = False
@@ -589,7 +599,7 @@ def findTheNoiseLevel(phraseFrames):
     return False
 
 ##################################################################
-def doAction(action, phraseText):
+def doAction(action, successText = 'Success', successDelay = 1, failureText = 'Failure'):
     if action == 'doOfferHelp':
         offerHelp()
         return
@@ -598,7 +608,7 @@ def doAction(action, phraseText):
         listPhrasesTrained(sayPhrases)
         return
     if action == 'doGoodBye':
-        doGoodBye(phraseText)
+        doGoodBye(successText)
         return
     if action == 'doCurrentTime':
         sayCurrentTime()
@@ -606,16 +616,32 @@ def doAction(action, phraseText):
     if action == 'doInitRobotDrive':
         global robotIsReadyToDrive
         robotIsReadyToDrive = initRobotDrive()
-        if not robotIsReadyToDrive:
+        if robotIsReadyToDrive:
+            say(successText, 1.5)
+        else:
             say('Robot Init Error', 1.5)
         return
+    if action == 'doDoYouSeeMe':
+        status = getRobotStatus()
+        print('')
+        print(status)
+        print('')
+        if 'visual' in status.keys():
+            visual = status['visual']
+            if 'faceDetected' in visual.keys() and visual['faceDetected'] == True:
+                say(successText, successDelay)
+            else:
+                say(failureText, successDelay)
+        sys.exit(1)
+        return
+
     if action == 'doForward':
         sendRobotDriveCommand('forward', fwdBakSpeed)
         #time.sleep(1.2)
         #sendRobotDriveCommand('forward')
         #time.sleep(1.2)
         #sendRobotDriveCommand('forward')
-        say('Did ' + phraseText, 2)
+        say('Did ' + successText + '.', 2)
         return
     if action == 'doBackward':
         sendRobotDriveCommand('backward', fwdBakSpeed)
@@ -623,7 +649,7 @@ def doAction(action, phraseText):
         #sendRobotDriveCommand('forward')
         #time.sleep(1.2)
         #sendRobotDriveCommand('forward')
-        say('Did ' + phraseText, 2)
+        say('Did ' + successText + '.', 2)
         return
     if action == 'doLeft':
         sendRobotDriveCommand('left', leftSpeed)
@@ -631,7 +657,7 @@ def doAction(action, phraseText):
         #sendRobotDriveCommand('forward')
         #time.sleep(1.2)
         #sendRobotDriveCommand('forward')
-        say('Did ' + phraseText, 2)
+        say('Did ' + successText + '.', 2)
         return
     if action == 'doRight':
         sendRobotDriveCommand('right', rightSpeed)
@@ -639,7 +665,7 @@ def doAction(action, phraseText):
         #sendRobotDriveCommand('forward')
         #time.sleep(1.2)
         #sendRobotDriveCommand('forward')
-        say('Did ' + phraseText, 2)
+        say('Did ' + successText + '.', 2)
         return
 
 
@@ -758,44 +784,7 @@ def sendPostMessage(completeUriString):
 
 
 ##################################################################
-def initRobotDrive():
-
-    print('')
-    print('initRobotDrive() : sending message to clr.usb.err...')
-    print('')
-
-    possibleJsonResp = sendPostMessage('/command?uri=/arduino/api/clr.usb.err')
-    try:
-        response = json.loads(possibleJsonResp)
-        print(response)
-    except:
-        track = traceback.format_exc()
-        print(track)
-        print('')
-        print(possibleJsonResp)
-        print('')
-        saveJsonAndCleanUp()
-
-    print('')
-    print('initRobotDrive() : waiting...')
-    print('')
-    time.sleep(3)
-
-    print('')
-    print('initRobotDrive() : getting (hopefully latest updated robot status)...')
-    print('')
-
-    possibleJsonResp = sendGetMessage('/status')
-    try:
-        response = json.loads(possibleJsonResp)
-        print(response)
-    except:
-        track = traceback.format_exc()
-        print(track)
-        print('')
-        print(possibleJsonResp)
-        print('')
-        saveJsonAndCleanUp()
+def clearMessagingCommand():
 
     print('')
     print('initRobotDrive() : clear the previous messaging command...')
@@ -805,6 +794,9 @@ def initRobotDrive():
     try:
         response = json.loads(possibleJsonResp)
         print(response)
+        if 'msg' in response.keys() and response['msg'] == 'ok':
+            return True
+        return False
     except:
         track = traceback.format_exc()
         print(track)
@@ -812,6 +804,55 @@ def initRobotDrive():
         print(possibleJsonResp)
         print('')
         saveJsonAndCleanUp()
+
+##################################################################
+def getRobotStatus():
+    possibleJsonResp = sendGetMessage('/status')
+    try:
+        response = json.loads(possibleJsonResp)
+        #print(response)
+    except:
+        track = traceback.format_exc()
+        print(track)
+        print('')
+        print(possibleJsonResp)
+        print('')
+        saveJsonAndCleanUp()
+
+    if 'status' in response.keys() and response['status'] != '':
+        status = response['status']
+    else:
+        status = None
+
+    return status
+
+##################################################################
+def initRobotDrive():
+
+
+    possibleJsonResp = sendPostMessage('/command?uri=/arduino/api/clr.usb.err')
+    if possibleJsonResp == 'Refused':
+        say('Refused',0)
+        saveJsonAndCleanUp()
+    try:
+        response = json.loads(possibleJsonResp)
+        print(response)
+    except:
+        track = traceback.format_exc()
+        print(track)
+        print('')
+        print(possibleJsonResp)
+        print('')
+        saveJsonAndCleanUp()
+
+    time.sleep(2)
+
+    status = getRobotStatus()
+
+    if status != None:
+        #status = response['status']
+        if 'error' in status.keys() and status['error'] == '':
+            return clearMessagingCommand()
 
     return False
 
@@ -858,13 +899,20 @@ def actOnKnownPhrases(phraseText, metaDataForLatestRecordedPhrase):
     if phraseText == 'noise':
         return
 
-    if conversation['response'] != 'none' and conversation['response'] != '':
-        say(conversation['response'], int(conversation['delay']))
+    if conversation['firstresp'] != 'none' and conversation['firstresp'] != '':
+        say(conversation['firstresp'], int(conversation['delay']))
         if conversation['action'] == 'none' or conversation['action'] == '':
             return
 
     if conversation['action'] != 'none' and conversation['action'] != '':
-        doAction(conversation['action'], phraseText)
+        if 'successresp' in conversation.keys() and 'successdelay' in conversation.keys() and 'failresp' in conversation.keys():
+            doAction(conversation['action'], conversation['successresp'], conversation['successdelay'], conversation['failresp'])
+        elif 'successresp' in conversation.keys() and 'successdelay' in conversation.keys():
+            doAction(conversation['action'], conversation['successresp'], conversation['successdelay'])
+        elif 'successresp' in conversation.keys():
+            doAction(conversation['action'], conversation['successresp'])
+        else:
+            doAction(conversation['action'], phraseText)
         return
 
 
@@ -937,15 +985,21 @@ while not quitProgram:
 
 
             difference, numMatches, bestPhraseMatch = findBestMatch(metaDataForLatestRecordedPhrase, phrasesArray)
-            print('best Phrase Match: ', bestPhraseMatch['phrase'], '  numMatches: ', numMatches)
-            if (difference < 250 and numMatches > 8) or (difference < 150 and numMatches > 6):
+            bestPhrase = bestPhraseMatch['phrase']
+            try:
+                conversation = conversationMap[bestPhrase]
+                verify = conversation['verify']
+            except:
+                verify = None
+            print('best Phrase Match: ', bestPhrase, '  numMatches: ', numMatches)
+            if (verify == 'assume' and numMatches > 1) or (difference < 150 and numMatches > 6) or (difference < 250 and numMatches > 8):
                 print(f.renderText(bestPhraseMatch['phrase']))
                 needPhrase = bestPhraseMatch['phrase']
                 actOnKnownPhrases(needPhrase, metaDataForLatestRecordedPhrase)
             else:
                 print(f.renderText(bestPhraseMatch['phrase']))
                 #say('Did you say ' + bestPhraseMatch['phrase'] + '?')
-                say('Did you say ' + bestPhraseMatch['phrase'] + '?"', 1.5)
+                say('Did you say ' + bestPhrase + '?"', 1.5)
                 justGetYesOrNoResponse = False
                 isThisCorrect, tryAgainForYesNo, gotClearYesOrNo = getIsThisCorrectUserInput(justGetYesOrNoResponse, False)
                 if not tryAgainForYesNo and isThisCorrect:
@@ -957,7 +1011,7 @@ while not quitProgram:
                 elif tryAgainForYesNo:
                     isThisCorrect, tryAgainForYesNo, gotClearYesOrNo = getIsThisCorrectUserInput(justGetYesOrNoResponse, True)
                     if not tryAgainForYesNo and isThisCorrect:
-                        needPhrase = bestPhraseMatch['phrase']
+                        needPhrase = bestPhrase
                         actOnKnownPhrases(needPhrase, metaDataForLatestRecordedPhrase)
                     elif not tryAgainForYesNo and gotClearYesOrNo and not isThisCorrect:
                         say('Enter phrase.', 1)
