@@ -172,7 +172,7 @@ def tryToGetJsonResponseFromRobotStatus():
 
     if '"volts":-1' in possibleJsonResp:
         say('Arduino is Up, but Not Roboclaw')
-        possibleJsonResp = sendPostMessage('/status', possibleJsonResp)
+        possibleJsonResp = sendPostMessage('/robot.status?from=vision', possibleJsonResp)
         print(possibleJsonResp)
         cleanUp()
 
@@ -245,14 +245,14 @@ def getRobotStatusAndUpdateMessaging():
 
     #sys.exit(1)
 
-    possibleJsonResp = sendPostMessage('/status', response)
+    possibleJsonResp = sendPostMessage('/robot.status?from=vision', response)
 
     return possibleJsonResp
 
 ##################################################################
-def getMessagingCommandAndSendToRobot():
+def getRobotMessagingCommandIfAnyAndSendToRobot():
 
-    possibleJsonResp = sendGetMessage('/command')
+    possibleJsonResp = sendGetMessage('/robot.command?from=vision')
     try:
         response = json.loads(possibleJsonResp)
     except:
@@ -271,21 +271,56 @@ def getMessagingCommandAndSendToRobot():
         if response['command'] != '':
 
             response = sendRobotUrl(response['command'])
-            if 'Cmd Sent' in response:
+            if 'Cmd Sent' in response or 'timestamp' in response:
                 getRobotStatusAndUpdateMessaging()
             else:
+                print('')
+                print('')
+                print('')
+                print(response)
                 cleanUp()
     else:
         print('response back from get message(command): ')
         print(response)
         cleanUp()
 
+##################################################################
+def getVisionMessagingCommandIfAny():
+
+    possibleJsonResp = sendGetMessage('/vision.command?from=vision')
+    try:
+        response = json.loads(possibleJsonResp)
+    except:
+        track = traceback.format_exc()
+        print(track)
+        print('')
+        print('')
+        print('')
+        print('error response back from messaging request to get latest command to execute: ' + possibleJsonResp)
+        print('')
+        print('')
+        cleanUp()
+
+        
+    if 'command' in response.keys():
+        if response['command'] != '':
+            print(response)
+            cleanUp()
+
+    else:
+        print('response back from get message(command): ')
+        print(response)
+        cleanUp()
+
+
 
 ##################################################################
 def executeCommandIfAnyFromMessaging():
 
-    getMessagingCommandAndSendToRobot()
+    getRobotMessagingCommandIfAnyAndSendToRobot()
 
+
+    getVisionMessagingCommandIfAny()
 
 
 ##################################################################
@@ -491,10 +526,12 @@ if cap.isOpened:
                 faceCentered = False
                 faceIsJustRight = False
 
-            moveMoveForwardOrBackForCorrectDistanceAway()
+
+
+            #moveMoveForwardOrBackForCorrectDistanceAway()
 
  
-            moveLeftOrRightToCenterOnFace(deltaLastTimeMoved, deltaLeftRight, leftEdge, rightEdge)
+            #moveLeftOrRightToCenterOnFace(deltaLastTimeMoved, deltaLeftRight, leftEdge, rightEdge)
  
 else:
     print("Failed to open capture device")

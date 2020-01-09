@@ -18,6 +18,8 @@ const thisServerPort = 8085;
 let latestCommandToRobotDrive = '';
 let latestStatusFromRobotDrive = '';
 
+let latestCommandToVision = '';
+
 const respondeWithCollectedDataHandler = (request, response) => {
         response.status(200).send('{\"status\":\"' + latestStatusFromRobotDrive + '\"}');
 }
@@ -25,8 +27,11 @@ const respondeWithCollectedDataHandler = (request, response) => {
 const mainGetHandler = (request, response) => {
 
     console.log('client request: mainGetHandler: ' + request.path);
+    if (request.query !== undefined) console.log('request.query:' + JSON.stringify(request.query));
+    if (request.params !== undefined) console.log('request.params:' + JSON.stringify(request.params));
+    if (request.body !== undefined) console.log('request.body:' + JSON.stringify(request.body));
 
-    if (request.path === '/messaging/api/command') {
+    if (request.path === '/messaging/api/robot.command') {
         console.log(latestCommandToRobotDrive);
         //let command = {}
         //command.command = latestCommandToRobotDrive;
@@ -34,36 +39,30 @@ const mainGetHandler = (request, response) => {
         console.log('{\"command\":\"' + latestCommandToRobotDrive + '\"}');
         response.status(200).send('{\"command\":\"' + latestCommandToRobotDrive + '\"}');
         //response.status(200).send(JSON.stringify(command));
-        console.log('')
-        console.log('')
-        console.log('')
-        console.log('')
-        console.log('DONE')
-        console.log('')
-        console.log('')
-        console.log('')
-        console.log('')
         return;
     }
 
-    if (request.path === '/messaging/api/status') {
-        let status = {}
-        status.status = latestStatusFromRobotDrive;
+    if (request.path === '/messaging/api/robot.status') {
+        let theStatus = {}
+        theStatus.status = latestStatusFromRobotDrive;
         //console.log('{\"status\":\"' + latestStatusFromRobotDrive + '\"}');
         //response.status(200).send('{\"status\":\"' + latestStatusFromRobotDrive + '\"}');
-        console.log(status);
-        response.status(200).send(JSON.stringify(status));
-        console.log('')
-        console.log('')
-        console.log('')
-        console.log('')
-        console.log('DONE')
-        console.log('')
-        console.log('')
-        console.log('')
-        console.log('')
+        console.log(theStatus);
+        response.status(200).send(JSON.stringify(theStatus));
         return;
     }
+
+
+    if (request.path === '/messaging/api/vision.command') {
+        let command = {}
+        command.command = latestCommandToVision;
+        //console.log('{\"status\":\"' + latestStatusFromRobotDrive + '\"}');
+        //response.status(200).send('{\"status\":\"' + latestStatusFromRobotDrive + '\"}');
+        console.log(command);
+        response.status(200).send(JSON.stringify(command));
+        return;
+    }
+
 
 
 
@@ -73,58 +72,45 @@ const mainGetHandler = (request, response) => {
     error.error = 'Error: You requested ' + request.path + '. Unknown.';
     //response.status(500).send('{\"error\":\"Error: You requested ' + request.path + '. Unknown.\"}');
     response.status(500).send(error);
+    server.close()
+    process.exit();
+
 }
 app.get('/messaging/api/*', mainGetHandler);
 
 const mainPostHandler = (request, response) => {
 
     console.log('client request: mainPostHandler: ' + request.path);
+    if (request.query !== undefined) console.log('request.query:' + JSON.stringify(request.query));
+    if (request.params !== undefined) console.log('request.params:' + JSON.stringify(request.params));
+    if (request.body !== undefined) console.log('request.body:' + JSON.stringify(request.body));
 
 
-    if (request.path === '/messaging/api/command') {
-        console.log('query.query.uri:' + request.query.uri);
-        if (request.params !== undefined) console.log('request.params:' + JSON.stringify(request.params));
-        if (request.body !== undefined) console.log('request.body:' + JSON.stringify(request.body));
+    if (request.path === '/messaging/api/robot.command') {
         latestCommandToRobotDrive = request.query.uri;
         //let msg = {}
         //msg.msg = 'ok';
         response.status(201).send('{\"msg\":\"ok\"}');
         //response.status(201).send(msg);
-        console.log('')
-        console.log('')
-        console.log('')
-        console.log('')
-        console.log('DONE')
-        console.log('')
-        console.log('')
-        console.log('')
-        console.log('')
         return;
     }
 
 
-    if (request.path === '/messaging/api/status') {
-        //console.log('');
-        //console.log('');
-        //console.log(request.body);
-        if (request.body !== undefined) console.log(request.body);
-        //console.log('');
-        //console.log('request.query.uri:' + request.query.uri);
-        //console.log('request.params:' + JSON.stringify(request.params));
+    if (request.path === '/messaging/api/robot.status') {
         latestStatusFromRobotDrive = request.body;
         //let msg = {}
         //msg.msg = 'ok';
         response.status(201).send('{\"msg\":\"ok\"}');
         //response.status(201).send(msg);
-        console.log('')
-        console.log('')
-        console.log('')
-        console.log('')
-        console.log('DONE')
-        console.log('')
-        console.log('')
-        console.log('')
-        console.log('')
+        return;
+    }
+
+
+    if (request.path === '/messaging/api/vision.command') {
+        let msg = {}
+        msg.msg = 'ok';
+        response.status(201).send(msg);
+        //response.status(201).send('{\"msg\":\"ok\"}');
         return;
     }
 
@@ -135,6 +121,8 @@ const mainPostHandler = (request, response) => {
     ////error.error = 'Error: You requested ' + request.path + '. Unknown.';
     response.status(500).send('{\"error\":\"Error: You requested ' + request.path + '. Unknown.\"}');
     //response.status(500).send(error);
+    server.close()
+    process.exit();
 }
 app.post('/messaging/api/*', mainPostHandler);
 
@@ -173,7 +161,8 @@ app.get('/', badRoot);
 app.post('/', badRoot);
 
 
-app.listen(thisServerPort, () => {
+const server = app.listen(thisServerPort, () => {
     console.log('HTTP Raspberry Pi Server is Up at ', thisServerPort);
 });
+
 
