@@ -14,14 +14,25 @@ app.use((request, response, next) => {
 
 const thisServerPort = 8085;
 
+// the robot vision control program will set to 'true' when it is ready
+let visionReadyForNextCommand = true;
+
+// the voice control program will set to 'true' when there is a new command set inside this server
+let visionHasNewCommandWaiting = false;
 
 let latestCommandToRobotDrive = '';
 let latestStatusFromRobotDrive = '';
 
 let latestCommandToVision = '';
 
-const respondeWithCollectedDataHandler = (request, response) => {
-        response.status(200).send('{\"status\":\"' + latestStatusFromRobotDrive + '\"}');
+const setNewCommandWaiting = () => {
+    visionReadyForNextCommand = false;
+    visionHasNewCommandWaiting = true;
+}
+
+const setVisionReadyForNewCommand = () => {
+    visionHasNewCommandWaiting = false;
+    visionReadyForNextCommand = true;
 }
 
 const mainGetHandler = (request, response) => {
@@ -31,33 +42,47 @@ const mainGetHandler = (request, response) => {
     if (request.params !== undefined) console.log('request.params:' + JSON.stringify(request.params));
     if (request.body !== undefined) console.log('request.body:' + JSON.stringify(request.body));
 
-    if (request.path === '/messaging/api/robot.command') {
-        console.log(latestCommandToRobotDrive);
-        //let command = {}
-        //command.command = latestCommandToRobotDrive;
-        //console.log(command);
-        console.log('{\"command\":\"' + latestCommandToRobotDrive + '\"}');
-        response.status(200).send('{\"command\":\"' + latestCommandToRobotDrive + '\"}');
-        //response.status(200).send(JSON.stringify(command));
+
+    if (request.path === '/messaging/api/vision/ready') {
+        console.log(visionReadyForNextCommand);
+        let msg = {}
+        msg.msg = visionReadyForNextCommand;
+        console.log(msg);
+        response.status(200).send(JSON.stringify(msg));
         return;
     }
 
-    if (request.path === '/messaging/api/robot.status') {
+    if (request.path === '/messaging/api/vision/new') {
+        console.log(visionHasNewCommandWaiting);
+        let msg = {}
+        msg.msg = visionHasNewCommandWaiting;
+        console.log(msg);
+        response.status(200).send(JSON.stringify(msg));
+        return;
+    }
+
+
+    if (request.path === '/messaging/api/robot/command') {
+        console.log(latestCommandToRobotDrive);
+        let command = {}
+        command.command = latestCommandToRobotDrive;
+        console.log(command);
+        response.status(200).send(JSON.stringify(command));
+        return;
+    }
+
+    if (request.path === '/messaging/api/vision/status') {
         let theStatus = {}
         theStatus.status = latestStatusFromRobotDrive;
-        //console.log('{\"status\":\"' + latestStatusFromRobotDrive + '\"}');
-        //response.status(200).send('{\"status\":\"' + latestStatusFromRobotDrive + '\"}');
         console.log(theStatus);
         response.status(200).send(JSON.stringify(theStatus));
         return;
     }
 
 
-    if (request.path === '/messaging/api/vision.command') {
+    if (request.path === '/messaging/api/vision/command') {
         let command = {}
         command.command = latestCommandToVision;
-        //console.log('{\"status\":\"' + latestStatusFromRobotDrive + '\"}');
-        //response.status(200).send('{\"status\":\"' + latestStatusFromRobotDrive + '\"}');
         console.log(command);
         response.status(200).send(JSON.stringify(command));
         return;
@@ -86,41 +111,65 @@ const mainPostHandler = (request, response) => {
     if (request.body !== undefined) console.log('request.body:' + JSON.stringify(request.body));
 
 
-    if (request.path === '/messaging/api/robot.command') {
+    if (request.path === '/messaging/api/robot/command') {
+        latestCommandToVision = ''
         latestCommandToRobotDrive = request.query.uri;
-        //let msg = {}
-        //msg.msg = 'ok';
-        response.status(201).send('{\"msg\":\"ok\"}');
-        //response.status(201).send(msg);
-        return;
-    }
-
-
-    if (request.path === '/messaging/api/robot.status') {
-        latestStatusFromRobotDrive = request.body;
-        //let msg = {}
-        //msg.msg = 'ok';
-        response.status(201).send('{\"msg\":\"ok\"}');
-        //response.status(201).send(msg);
-        return;
-    }
-
-
-    if (request.path === '/messaging/api/vision.command') {
         let msg = {}
         msg.msg = 'ok';
         response.status(201).send(msg);
-        //response.status(201).send('{\"msg\":\"ok\"}');
+        setNewCommandWaiting();
+        return;
+    }
+
+
+    if (request.path === '/messaging/api/vision/status') {
+        latestStatusFromRobotDrive = request.body;
+        let msg = {}
+        msg.msg = 'ok';
+        response.status(201).send(msg);
+        setVisionReadyForNewCommand();
+        return;
+    }
+
+
+    if (request.path === '/messaging/api/vision/status/quit') {
+        latestStatusFromRobotDrive = {};
+        latestStatusFromRobotDrive['quit'] = '';
+        let msg = {}
+        msg.msg = 'ok';
+        response.status(201).send(msg);
+        setVisionReadyForNewCommand();
+        return;
+    }
+
+
+    if (request.path === '/messaging/api/vision/command/status') {
+        latestStatusFromRobotDrive = '';
+        latestCommandToVision = 'status'
+        let msg = {}
+        msg.msg = 'ok';
+        response.status(201).send(msg);
+        setNewCommandWaiting();
+        return;
+    }
+
+
+    if (request.path === '/messaging/api/vision/command/quit') {
+        latestStatusFromRobotDrive = '';
+        latestCommandToVision = 'quit'
+        let msg = {}
+        msg.msg = 'ok';
+        response.status(201).send(msg);
+        setNewCommandWaiting();
         return;
     }
 
 
     console.log(request.method);
     console.log(request.params);
-    //let error = {}
-    ////error.error = 'Error: You requested ' + request.path + '. Unknown.';
-    response.status(500).send('{\"error\":\"Error: You requested ' + request.path + '. Unknown.\"}');
-    //response.status(500).send(error);
+    let error = {}
+    error.error = 'Error: You requested ' + request.path + '. Unknown.';
+    response.status(500).send(error);
     server.close()
     process.exit();
 }

@@ -139,7 +139,10 @@ def sendPostMessage(completeUriString, dataString = None):
 
     try:
         if dataString != None:
+            print(dataString)
             data = json.dumps(dataString)
+            print('sendPostMessage(): dataString to json data: ')
+            print(data)
             #headers = {'Content-type': 'application/json, text/plain', 'Accept': 'text/plain, application/json'}
             headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
             response = requests.post(url=robotMessagingUrl + completeUriString, data=data, headers=headers, timeout=httpTimeout)
@@ -172,7 +175,7 @@ def tryToGetJsonResponseFromRobotStatus():
 
     if '"volts":-1' in possibleJsonResp:
         say('Arduino is Up, but Not Roboclaw')
-        possibleJsonResp = sendPostMessage('/robot.status?from=vision', possibleJsonResp)
+        possibleJsonResp = sendPostMessage('/vision/status?from=vision', possibleJsonResp)
         print(possibleJsonResp)
         cleanUp()
 
@@ -205,6 +208,26 @@ def tryToGetLatestAndGoodStatusResponseFromRobot():
         time.sleep(0.2)
 
     return response
+
+##################################################################
+def updateMessagingAndQuit():
+
+    print('')
+    print('')
+    print('')
+    print('updateMessagingAndQuit()')
+    print('')
+    print('')
+    print('')
+    possibleJsonResp = sendPostMessage('/vision/status/quit?from=vision')
+
+    print(possibleJsonResp)
+    print('')
+    print('')
+    print('')
+
+    cleanUp()
+
 
 ##################################################################
 def getRobotStatusAndUpdateMessaging():
@@ -245,14 +268,15 @@ def getRobotStatusAndUpdateMessaging():
 
     #sys.exit(1)
 
-    possibleJsonResp = sendPostMessage('/robot.status?from=vision', response)
+    possibleJsonResp = sendPostMessage('/vision/status?from=vision', response)
 
     return possibleJsonResp
+
 
 ##################################################################
 def getRobotMessagingCommandIfAnyAndSendToRobot():
 
-    possibleJsonResp = sendGetMessage('/robot.command?from=vision')
+    possibleJsonResp = sendGetMessage('/robot/command?from=vision')
     try:
         response = json.loads(possibleJsonResp)
     except:
@@ -285,9 +309,20 @@ def getRobotMessagingCommandIfAnyAndSendToRobot():
         cleanUp()
 
 ##################################################################
-def getVisionMessagingCommandIfAny():
+def getVisionMessagingCommandIfAnyAndExecute():
 
-    possibleJsonResp = sendGetMessage('/vision.command?from=vision')
+    possibleJsonResp = sendGetMessage('/vision/command?from=vision')
+
+    print('')
+    print('')
+    print('getVisionMessagingCommandIfAny()...')
+    print('')
+    print('')
+    print(possibleJsonResp)
+    print('')
+    print('')
+    print('')
+
     try:
         response = json.loads(possibleJsonResp)
     except:
@@ -301,11 +336,22 @@ def getVisionMessagingCommandIfAny():
         print('')
         cleanUp()
 
-        
+    print('')
+    print('')
+    print('getVisionMessagingCommandIfAny(): response:')
+    print('')
+    print('')
+    print(response)
+    print('')
+    print('')
+
     if 'command' in response.keys():
-        if response['command'] != '':
-            print(response)
-            cleanUp()
+        command = response['command']
+        if command != '':
+            if command == 'status':
+                getRobotStatusAndUpdateMessaging()
+            elif command == 'quit':
+                updateMessagingAndQuit()
 
     else:
         print('response back from get message(command): ')
@@ -313,14 +359,41 @@ def getVisionMessagingCommandIfAny():
         cleanUp()
 
 
+##################################################################
+def checkIfMessagingHasNewCommandWaiting():
+
+    possibleJsonResp = sendGetMessage('/vision/new?from=vision')
+    try:
+        response = json.loads(possibleJsonResp)
+    except:
+        track = traceback.format_exc()
+        print(track)
+        print('')
+        print('')
+        print('')
+        print('error response back from messaging request to check if new command is waiting : ' + possibleJsonResp)
+        print('')
+        print('')
+        cleanUp()
+
+        
+    if 'msg' in response.keys() and response['msg'] == True:
+        return True
+
+    return False
 
 ##################################################################
 def executeCommandIfAnyFromMessaging():
 
-    getRobotMessagingCommandIfAnyAndSendToRobot()
+    newCommandWaiting = checkIfMessagingHasNewCommandWaiting()
+    if newCommandWaiting:
+        print('executCommandIfAny... possible new robot command is waiting...')
+        getRobotMessagingCommandIfAnyAndSendToRobot()
 
-
-    getVisionMessagingCommandIfAny()
+    newCommandWaiting = checkIfMessagingHasNewCommandWaiting()
+    if newCommandWaiting:
+        print('executCommandIfAny... possible new vision command is waiting...')
+        getVisionMessagingCommandIfAnyAndExecute()
 
 
 ##################################################################
