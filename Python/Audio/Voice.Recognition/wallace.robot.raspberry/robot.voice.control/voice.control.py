@@ -266,7 +266,27 @@ def saveJsonAndCleanUp():
     print('')
     print('')
 
+    status = tellRobotVisionDriveControlToQuit()
+
+    print('')
+    print('')
+    print('')
+    print('')
+    print('saveJsonAndCleanUp() status returned from telling robot to quit:')
+    print(status)
     saveJsonData()
+
+    count = 0
+    while status != 'quit' and count < 2:
+        print('')
+        print('')
+        print('')
+        print('')
+        print('saveJsonAndCleanUp() INSIDE LOOP , status returned from telling robot to quit:')
+        print(status)
+        status = tellRobotVisionDriveControlToQuit()
+        count += 1
+
     cleanUp()
 
 ##################################################################
@@ -615,15 +635,16 @@ def doAction(action, successText = 'Success', successDelay = 1, failureText = 'F
         return
     if action == 'doInitRobotDrive':
         global robotIsReadyToDrive
-        robotIsReadyToDrive = initRobotDrive()
-        if robotIsReadyToDrive:
-            say(successText, 1.5)
-        else:
-            say('Robot Init Error', 1.5)
+        if not robotIsReadyToDrive:
+            robotIsReadyToDrive = initRobotDrive()
+            if robotIsReadyToDrive:
+                say(successText, 1.5)
+            else:
+                say('Robot Init Error', 1.5)
         return
     if action == 'doDoYouSeeMe':
-        getLatestUpdatedStatus = True
-        status = getRobotStatus(getLatestUpdatedStatus)
+        getUpdateLatestStatus = True
+        status = getRobotStatus(getUpdateLatestStatus)
         print('')
         print(status)
         print('')
@@ -764,9 +785,36 @@ def sendGetMessage(completeUriString):
 
 
 ##################################################################
+def waitForVisionRobotControlToBeReadyForNextCommand():
+
+    isReady = False
+    count = 0
+    while not isReady and count < 10:
+        count += 1
+        isReady = checkIfVisionRobotControlIsReadyForNextCommand()
+        if isReady:
+            break
+        print('')
+        print('')
+        print('')
+        print('sendPostMessage(): vision program not yet ready for this next command..')
+        print('')
+        print('')
+        print('')
+
+    if not isReady:
+        track = traceback.format_exc()
+        print(track)
+        say('Other Communication Error', 0)
+
+    return isReady
+
+##################################################################
 def sendPostMessage(completeUriString):
 
     global robotDriveServerConnectionRefusedNumberOfTimes
+
+    waitForVisionRobotControlToBeReadyForNextCommand()
 
     try:
         print(robotMessagingUrl + completeUriString)
@@ -790,13 +838,35 @@ def sendPostMessage(completeUriString):
 
 
 ##################################################################
+def checkIfVisionRobotControlIsReadyForNextCommand():
+
+    print('')
+    print('checkIfVisionRobotControlIsReadyForNextCommand()...')
+    print('')
+
+    possibleJsonResp = sendGetMessage('/vision/ready?from=voice.control')
+    try:
+        response = json.loads(possibleJsonResp)
+        print(response)
+        if 'msg' in response.keys()and response['msg'] == True:
+            return True
+        return False
+    except:
+        track = traceback.format_exc()
+        print(track)
+        print('')
+        print(possibleJsonResp)
+        print('')
+        saveJsonAndCleanUp()
+
+##################################################################
 def clearMessagingCommand():
 
     print('')
-    print('initRobotDrive() : clear the previous messaging command...')
+    print('clearMessagingCommand() : clear the previous messaging command...')
     print('')
 
-    possibleJsonResp = sendPostMessage('/robot.command?uri=&from=voice.control')
+    possibleJsonResp = sendPostMessage('/robot/command?uri=&from=voice.control')
     try:
         response = json.loads(possibleJsonResp)
         print(response)
@@ -812,30 +882,107 @@ def clearMessagingCommand():
         saveJsonAndCleanUp()
 
 ##################################################################
-def getRobotStatus(getLatestUpdatedStatus=False):
+def tellRobotVisionDriveControlToQuit():
 
-    if getLatestUpdatedStatus:
-        possibleJsonResp = sendPostMessage('/robot.command?uri=/nodejs/api/data&from=voice.control')
-        if possibleJsonResp == 'Refused':
-            say('Refused',0)
-            saveJsonAndCleanUp()
+    print('')
+    print('')
+    print('')
+    print('tellRobotVisionDriveControlToQuit() : send post command requesting latest status...')
+    print('')
+
+    possibleJsonResp = sendPostMessage('/vision/command/quit?from=voice.control')
+    if 'Refused' in possibleJsonResp:
+        status = 'Refused'
+        return status
+    try:
+        response = json.loads(possibleJsonResp)
+        #print(response)
+    except:
+        track = traceback.format_exc()
+        print(track)
+        print('')
+        print(possibleJsonResp)
+        print('')
+        print('NO STATUS')
+        print('')
+        status = None
+        return status
+
+    print('')
+    print('tellRobotVisionDriveControlToQuit() : now waiting for vision to post status, to get latest status...')
+    print('')
+
+    waitForVisionRobotControlToBeReadyForNextCommand()
+
+    possibleJsonResp = sendGetMessage('/vision/status?from=voice.control')
+    if 'Refused' in possibleJsonResp:
+        status = 'Refused'
+        return status
+    try:
+        response = json.loads(possibleJsonResp)
+        print(response)
+    except:
+        track = traceback.format_exc()
+        print(track)
+        print('')
+        print(possibleJsonResp)
+        print('')
+        print('NO STATUS')
+        print('')
+        status = None
+        return status
+
+
+    if 'status' in response.keys() and response['status'] != '':
+        status = response['status']
+        if type(status) is dict and 'quit' in status.keys():
+            status = 'quit'
+    else:
+        status = None
+
+    return status
+
+
+##################################################################
+def getRobotStatus(getUpdatedStatus=False):
+
+    if getUpdatedStatus:
+        print('')
+        print('')
+        print('')
+        print('getRobotStatus() : send post command requesting latest status...')
+        print('')
+
+        possibleJsonResp = sendPostMessage('/vision/command/status?from=voice.control')
+        if 'Refused' in possibleJsonResp:
+            status = 'Refused'
+            return status
         try:
             response = json.loads(possibleJsonResp)
-            print(response)
+            #print(response)
         except:
             track = traceback.format_exc()
             print(track)
             print('')
             print(possibleJsonResp)
             print('')
-            saveJsonAndCleanUp()
+            print('NO STATUS')
+            print('')
+            #saveJsonAndCleanUp()
+            status = None
+            return status
 
-        time.sleep(2)
+        print('')
+        print('getRobotStatus() : now waiting for vision to post status, to get latest status...')
+        print('')
 
-        clearMessagingCommand()
+        waitForVisionRobotControlToBeReadyForNextCommand()
 
+    print('')
+    print('getRobotStatus() : get status...')
+    print('')
 
-    possibleJsonResp = sendGetMessage('/robot.status?from=voice.control')
+    possibleJsonResp = sendGetMessage('/vision/status?from=voice.control')
     if 'Refused' in possibleJsonResp:
         status = 'Refused'
         return status
@@ -854,6 +1001,12 @@ def getRobotStatus(getLatestUpdatedStatus=False):
         status = None
         return status
 
+    print('')
+    print('getRobotStatus() : get status IS: ')
+    print('')
+    print(response)
+
+
     if 'status' in response.keys() and response['status'] != '':
         status = response['status']
     else:
@@ -861,11 +1014,12 @@ def getRobotStatus(getLatestUpdatedStatus=False):
 
     return status
 
+
 ##################################################################
 def initRobotDrive():
 
 
-    possibleJsonResp = sendPostMessage('/robot.command?uri=/arduino/api/clr.usb.err&from=voice.control')
+    possibleJsonResp = sendPostMessage('/robot/command?uri=/arduino/api/clr.usb.err&from=voice.control')
     if possibleJsonResp == 'Refused':
         say('Refused',0)
         saveJsonAndCleanUp()
@@ -880,14 +1034,15 @@ def initRobotDrive():
         print('')
         saveJsonAndCleanUp()
 
-    time.sleep(2)
+    #time.sleep(2)
 
     status = getRobotStatus()
 
     if status != None:
         #status = response['status']
         if 'error' in status.keys() and status['error'] == '':
-            return clearMessagingCommand()
+            #return clearMessagingCommand()
+            return True
 
     return False
 
