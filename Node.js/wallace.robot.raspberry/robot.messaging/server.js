@@ -37,6 +37,7 @@ const setVisionReadyForNewCommand = () => {
 
 const mainGetHandler = (request, response) => {
 
+    console.log('');
     console.log('client request: mainGetHandler: ' + request.path);
     if (request.query !== undefined) console.log('request.query:' + JSON.stringify(request.query));
     if (request.params !== undefined) console.log('request.params:' + JSON.stringify(request.params));
@@ -45,19 +46,19 @@ const mainGetHandler = (request, response) => {
 
     if (request.path === '/messaging/api/vision/ready') {
         console.log(visionReadyForNextCommand);
-        let msg = {}
-        msg.msg = visionReadyForNextCommand;
-        console.log(msg);
-        response.status(200).send(JSON.stringify(msg));
+        let ready = {}
+        ready.ready = visionReadyForNextCommand;
+        console.log(ready);
+        response.status(200).send(JSON.stringify(ready));
         return;
     }
 
     if (request.path === '/messaging/api/vision/new') {
         console.log(visionHasNewCommandWaiting);
-        let msg = {}
-        msg.msg = visionHasNewCommandWaiting;
-        console.log(msg);
-        response.status(200).send(JSON.stringify(msg));
+        let newcmd = {}
+        newcmd.newcmdavail = visionHasNewCommandWaiting;
+        console.log(newcmd);
+        response.status(200).send(JSON.stringify(newcmd));
         return;
     }
 
@@ -103,8 +104,10 @@ const mainGetHandler = (request, response) => {
 }
 app.get('/messaging/api/*', mainGetHandler);
 
+
 const mainPostHandler = (request, response) => {
 
+    console.log('');
     console.log('client request: mainPostHandler: ' + request.path);
     if (request.query !== undefined) console.log('request.query:' + JSON.stringify(request.query));
     if (request.params !== undefined) console.log('request.params:' + JSON.stringify(request.params));
@@ -175,6 +178,87 @@ const mainPostHandler = (request, response) => {
 }
 app.post('/messaging/api/*', mainPostHandler);
 
+
+const mainDeleteHandler = (request, response) => {
+
+    console.log('');
+    console.log('client request: mainDeleteHandler: ' + request.path);
+    if (request.query !== undefined) console.log('request.query:' + JSON.stringify(request.query));
+    if (request.params !== undefined) console.log('request.params:' + JSON.stringify(request.params));
+    if (request.body !== undefined) console.log('request.body:' + JSON.stringify(request.body));
+
+
+    if (request.path === '/messaging/api/robot/command') {
+        latestCommandToRobotDrive = '';
+        let msg = {}
+        msg.msg = 'ok';
+        response.status(201).send(msg);
+        setNewCommandWaiting();
+        return;
+    }
+
+
+    if (request.path === '/messaging/api/vision/new') {
+        visionHasNewCommandWaiting = false;
+        let msg = {}
+        msg.msg = 'ok';
+        response.status(201).send(msg);
+        setVisionReadyForNewCommand();
+        return;
+    }
+
+    if (request.path === '/messaging/api/vision/status') {
+        latestStatusFromRobotDrive = request.body;
+        let msg = {}
+        msg.msg = 'ok';
+        response.status(201).send(msg);
+        setVisionReadyForNewCommand();
+        return;
+    }
+
+
+    if (request.path === '/messaging/api/vision/status/quit') {
+        latestStatusFromRobotDrive = {};
+        latestStatusFromRobotDrive['quit'] = '';
+        let msg = {}
+        msg.msg = 'ok';
+        response.status(201).send(msg);
+        setVisionReadyForNewCommand();
+        return;
+    }
+
+
+    if (request.path === '/messaging/api/vision/command/status') {
+        latestStatusFromRobotDrive = '';
+        latestCommandToVision = 'status'
+        let msg = {}
+        msg.msg = 'ok';
+        response.status(201).send(msg);
+        setNewCommandWaiting();
+        return;
+    }
+
+
+    if (request.path === '/messaging/api/vision/command/quit') {
+        latestStatusFromRobotDrive = '';
+        latestCommandToVision = 'quit'
+        let msg = {}
+        msg.msg = 'ok';
+        response.status(201).send(msg);
+        setNewCommandWaiting();
+        return;
+    }
+
+
+    console.log(request.method);
+    console.log(request.params);
+    let error = {}
+    error.error = 'Error: You requested ' + request.path + '. Unknown.';
+    response.status(500).send(error);
+    server.close()
+    process.exit();
+}
+app.delete('/messaging/api/*', mainDeleteHandler);
 
 
 const messagingApiBad = (request, response) => {

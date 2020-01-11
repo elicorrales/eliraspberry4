@@ -118,7 +118,7 @@ def sendGetMessage(completeUriString):
         messagingServerConnectionRefusedNumberOfTimes = 0;
         return response.text
     except (socket.timeout, urllib3.exceptions.ReadTimeoutError, requests.exceptions.ReadTimeout):
-        return 'Timeout'
+        cleanUp()
     except (requests.exceptions.ConnectionError, ConnectionRefusedError):
         time.sleep(0.20)
         messagingServerConnectionRefusedNumberOfTimes += 1;
@@ -155,7 +155,7 @@ def sendPostMessage(completeUriString, dataString = None):
         messagingServerConnectionRefusedNumberOfTimes = 0;
         return response.text
     except (socket.timeout, urllib3.exceptions.ReadTimeoutError, requests.exceptions.ReadTimeout):
-        return 'Timeout'
+        cleanUp()
     except (requests.exceptions.ConnectionError, ConnectionRefusedError):
         time.sleep(0.20)
         messagingServerConnectionRefusedNumberOfTimes += 1;
@@ -167,6 +167,36 @@ def sendPostMessage(completeUriString, dataString = None):
         print(track)
         say('Other Communication Error', 0)
         cleanUp()
+
+
+##################################################################
+def sendDeleteMessage(completeUriString):
+
+    global messagingServerConnectionRefusedNumberOfTimes
+
+    try:
+        print(robotMessagingUrl + completeUriString)
+        response = requests.delete(url=robotMessagingUrl + completeUriString, timeout=httpTimeout)
+        return response.text
+
+        messagingServerConnectionRefusedNumberOfTimes = 0;
+        return response.text
+    except (socket.timeout, urllib3.exceptions.ReadTimeoutError, requests.exceptions.ReadTimeout):
+        cleanUp()
+    except (requests.exceptions.ConnectionError, ConnectionRefusedError):
+        time.sleep(0.20)
+        messagingServerConnectionRefusedNumberOfTimes += 1;
+        if messagingServerConnectionRefusedNumberOfTimes > 3:
+            cleanUp()
+        return 'Refused'
+    except:
+        track = traceback.format_exc()
+        print(track)
+        say('Other Communication Error', 0)
+        cleanUp()
+
+
+
 
 ##################################################################
 def tryToGetJsonResponseFromRobotStatus():
@@ -272,9 +302,49 @@ def getRobotStatusAndUpdateMessaging():
 
     return possibleJsonResp
 
+##################################################################
+def clearMessagingNewCommandAvailable():
+    possibleJsonResp = sendDeleteMessage('/vision/new?from=vision')
+    if 'ok' not in possibleJsonResp:
+        print('')
+        print('')
+        print('')
+        print('error response back from clearMessagingNewCommandAvailable: ')
+        print(possibleJsonResp)
+        cleanUp()
+
+
+##################################################################
+def clearMessagingLatestRobotCommand():
+    possibleJsonResp = sendDeleteMessage('/robot/command?from=vision')
+    if 'ok' not in possibleJsonResp:
+        print('')
+        print('')
+        print('')
+        print('error response back from clearMessagingLatestRobotCommand: ')
+        print(possibleJsonResp)
+        cleanUp()
+
+##################################################################
+def clearMessagingLatestVisionCommand():
+    possibleJsonResp = sendDeleteMessage('/vision/command?from=vision')
+    if 'ok' not in possibleJsonResp:
+        print('')
+        print('')
+        print('')
+        print('error response back from clearMessagingLatestVisionCommand: ')
+        print(possibleJsonResp)
+        cleanUp()
 
 ##################################################################
 def getRobotMessagingCommandIfAnyAndSendToRobot():
+
+    """
+    print('')
+    print('')
+    print('')
+    print('getRobotMessagingCommandIfAnyAndSendToRobot()')
+    """
 
     possibleJsonResp = sendGetMessage('/robot/command?from=vision')
     try:
@@ -290,20 +360,46 @@ def getRobotMessagingCommandIfAnyAndSendToRobot():
         print('')
         cleanUp()
 
-        
+    """ 
+    print('')
+    print('')
+    print('')
+    print('getRobotMessagingCommandIfAnyAndSendToRobot(): response:')
+    print(response)
+    """
+
     if 'command' in response.keys():
         if response['command'] != '':
-
+            clearMessagingNewCommandAvailable()
+            clearMessagingLatestRobotCommand()
             response = sendRobotUrl(response['command'])
-            if 'Cmd Sent' in response or 'timestamp' in response:
-                getRobotStatusAndUpdateMessaging()
-            else:
+            if 'Cmd Sent' not in response:
+                #getRobotStatusAndUpdateMessaging()
+            #else:
                 print('')
                 print('')
                 print('')
+                print('Command NOT sent to Arduino?')
                 print(response)
+                print('')
+                print('')
+                print('')
                 cleanUp()
+        else:
+            print('')
+            print('')
+            print('')
+            print('Empty Command?')
+            print(response)
+            print('')
+            print('')
+            print('')
+            cleanUp()
+
     else:
+        print('')
+        print('')
+        print('')
         print('response back from get message(command): ')
         print(response)
         cleanUp()
@@ -348,13 +444,15 @@ def getVisionMessagingCommandIfAnyAndExecute():
     if 'command' in response.keys():
         command = response['command']
         if command != '':
+            clearMessagingNewCommandAvailable()
+            clearMessagingLatestVisionCommand()
             if command == 'status':
                 getRobotStatusAndUpdateMessaging()
             elif command == 'quit':
                 updateMessagingAndQuit()
 
     else:
-        print('response back from get message(command): ')
+        print('error in response back from get new command if any : ')
         print(response)
         cleanUp()
 
@@ -377,8 +475,24 @@ def checkIfMessagingHasNewCommandWaiting():
         cleanUp()
 
         
-    if 'msg' in response.keys() and response['msg'] == True:
-        return True
+    if 'newcmdavail' in response.keys():
+        if response['newcmdavail'] == True:
+            print('')
+            print('')
+            print('')
+            print('new command is waiting: ' + possibleJsonResp)
+            print('')
+            print('')
+            return True
+    else:
+        print('')
+        print('')
+        print('')
+        print('error when checking if new command is waiting: ' + possibleJsonResp)
+        print('')
+        print('')
+        cleanUp()
+
 
     return False
 
@@ -406,7 +520,7 @@ def sendRobotUrl(command):
         robotDriveServerConnectionRefusedNumberOfTimes = 0;
         return response.text
     except (socket.timeout, urllib3.exceptions.ReadTimeoutError, requests.exceptions.ReadTimeout):
-        return 'Timeout'
+        cleanUp()
     except (requests.exceptions.ConnectionError, ConnectionRefusedError):
         time.sleep(0.20)
         robotDriveServerConnectionRefusedNumberOfTimes += 1;
@@ -519,6 +633,7 @@ if __name__ == '__main__':
 
 initCamera()
 
+"""
 robotIsReadyToDrive = initRobotDrive()
 if not robotIsReadyToDrive:
     robotIsReadyToDrive = initRobotDrive()
@@ -528,7 +643,7 @@ if not robotIsReadyToDrive:
 if not robotIsReadyToDrive:
     say('Robot not initialized')
     cleanUp()
-
+"""
 
 # only attempt to read if it is opened
 if cap.isOpened:
