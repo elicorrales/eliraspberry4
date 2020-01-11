@@ -85,7 +85,7 @@ conversationMap = {}
 quitProgram = False
 newPhraseAddedThisTime = False
 newYesNoQuitAddedThisTime = False
-
+saveJsonAndCleanUpAlreadyCalledOnce = False
 
 robotMessagingUrl = 'http://10.0.0.58:8085/messaging/api'
 robotIsReadyToDrive = False
@@ -259,6 +259,12 @@ def cleanUp():
 
 ##################################################################
 def saveJsonAndCleanUp():
+
+    global saveJsonAndCleanUpAlreadyCalledOnce
+    if saveJsonAndCleanUpAlreadyCalledOnce:
+        cleanUp()
+
+    saveJsonAndCleanUpAlreadyCalledOnce = True
 
     print('')
     print('')
@@ -848,9 +854,17 @@ def checkIfVisionRobotControlIsReadyForNextCommand():
     try:
         response = json.loads(possibleJsonResp)
         print(response)
-        if 'msg' in response.keys()and response['msg'] == True:
-            return True
-        return False
+        if type(response) is dict:
+            if 'ready' in response.keys()and response['ready'] == True:
+                return True
+            return False
+        else:
+            track = traceback.format_exc()
+            print(track)
+            print('')
+            print(possibleJsonResp)
+            print('')
+            saveJsonAndCleanUp()
     except:
         track = traceback.format_exc()
         print(track)
@@ -912,7 +926,7 @@ def tellRobotVisionDriveControlToQuit():
     print('tellRobotVisionDriveControlToQuit() : now waiting for vision to post status, to get latest status...')
     print('')
 
-    waitForVisionRobotControlToBeReadyForNextCommand()
+    time.sleep(2)
 
     possibleJsonResp = sendGetMessage('/vision/status?from=voice.control')
     if 'Refused' in possibleJsonResp:
@@ -1040,9 +1054,17 @@ def initRobotDrive():
 
     if status != None:
         #status = response['status']
-        if 'error' in status.keys() and status['error'] == '':
-            #return clearMessagingCommand()
-            return True
+        if type(status) is dict:
+            if 'error' in status.keys() and status['error'] == '':
+                #return clearMessagingCommand()
+                return True
+        else:
+            track = traceback.format_exc()
+            print(track)
+            print('')
+            print(status)
+            print('')
+            saveJsonAndCleanUp()
 
     return False
 
