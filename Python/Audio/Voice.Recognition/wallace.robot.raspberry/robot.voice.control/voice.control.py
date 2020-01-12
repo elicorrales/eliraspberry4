@@ -795,18 +795,18 @@ def waitForVisionRobotControlToBeReadyForNextCommand():
 
     isReady = False
     count = 0
-    while not isReady and count < 10:
+    while not isReady and count < 20:
         count += 1
         isReady = checkIfVisionRobotControlIsReadyForNextCommand()
         if isReady:
             break
         print('')
         print('')
-        print('')
         print('sendPostMessage(): vision program not yet ready for this next command..')
         print('')
         print('')
-        print('')
+
+        time.sleep(0.2)
 
     if not isReady:
         track = traceback.format_exc()
@@ -831,7 +831,7 @@ def sendPostMessage(completeUriString):
     except (socket.timeout, urllib3.exceptions.ReadTimeoutError, requests.exceptions.ReadTimeout):
         return 'Timeout'
     except (requests.exceptions.ConnectionError, ConnectionRefusedError):
-        time.sleep(0.20)
+        time.sleep(0.2)
         robotDriveServerConnectionRefusedNumberOfTimes += 1;
         if robotDriveServerConnectionRefusedNumberOfTimes > 3:
             saveJsonAndCleanUp()
@@ -880,7 +880,7 @@ def clearMessagingCommand():
     print('clearMessagingCommand() : clear the previous messaging command...')
     print('')
 
-    possibleJsonResp = sendPostMessage('/robot/command?uri=&from=voice.control')
+    possibleJsonResp = sendDeleteMessage('/vision/command?from=voice.control')
     try:
         response = json.loads(possibleJsonResp)
         print(response)
@@ -1033,7 +1033,7 @@ def getRobotStatus(getUpdatedStatus=False):
 def initRobotDrive():
 
 
-    possibleJsonResp = sendPostMessage('/robot/command?uri=/arduino/api/clr.usb.err&from=voice.control')
+    possibleJsonResp = sendPostMessage('/vision/command/initialize')
     if possibleJsonResp == 'Refused':
         say('Refused',0)
         saveJsonAndCleanUp()
@@ -1048,9 +1048,11 @@ def initRobotDrive():
         print('')
         saveJsonAndCleanUp()
 
-    #time.sleep(2)
+    #time.sleep(3)
+    waitForVisionRobotControlToBeReadyForNextCommand()
 
-    status = getRobotStatus()
+    getUpdateLatestStatus = True
+    status = getRobotStatus(getUpdateLatestStatus)
 
     if status != None:
         #status = response['status']
