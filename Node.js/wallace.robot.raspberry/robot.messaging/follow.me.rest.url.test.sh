@@ -2,79 +2,79 @@
 
 
 function  getMessagingStatus {
-    echo http://10.0.0.58:8085/messaging/api/vision/ready;
-    curl http://10.0.0.58:8085/messaging/api/vision/ready;
+    echo http://10.0.0.58:8085/messaging/api/vision/ready?from=voice.control;
+    curl http://10.0.0.58:8085/messaging/api/vision/ready?from=voice.control;
     echo;
 
-    echo http://10.0.0.58:8085/messaging/api/vision/new;
-    curl http://10.0.0.58:8085/messaging/api/vision/new;
+    echo http://10.0.0.58:8085/messaging/api/vision/new?from=voice.control;
+    curl http://10.0.0.58:8085/messaging/api/vision/new?from=voice.control;
     echo;
 
-    echo http://10.0.0.58:8085/messaging/api/robot/command;
-    curl http://10.0.0.58:8085/messaging/api/robot/command;
+    echo http://10.0.0.58:8085/messaging/api/vision/status?from=voice.control;
+    curl http://10.0.0.58:8085/messaging/api/vision/status?from=voice.control;
     echo;
 
-    echo http://10.0.0.58:8085/messaging/api/vision/status;
-    curl http://10.0.0.58:8085/messaging/api/vision/status;
+    echo http://10.0.0.58:8085/messaging/api/vision/command?from=voice.control;
+    curl http://10.0.0.58:8085/messaging/api/vision/command?from=voice.control;
     echo;
 
-    echo http://10.0.0.58:8085/messaging/api/vision/command;
-    curl http://10.0.0.58:8085/messaging/api/vision/command;
-    echo;
-
+    echo "================================================="
 }
 
 
+function initialize {
+
+    echo;
+    command="/initialize?from=voice.control";
+    echo "-X POST -H \"Content-Type:application/json\" http://10.0.0.58:8085/messaging/api/vision/command${command}";
+    curl -X POST -H "Content-Type:application/json" http://10.0.0.58:8085/messaging/api/vision/command${command};
+    echo;
+    echo "================================================="
+}
+
+
+function quit {
+
+    echo;
+    command="/quit?from=voice.control";
+    echo "-X POST -H \"Content-Type:application/json\" http://10.0.0.58:8085/messaging/api/vision/command${command}";
+    curl -X POST -H "Content-Type:application/json" http://10.0.0.58:8085/messaging/api/vision/command${command};
+    echo;
+    echo "================================================="
+}
+
+
+
+
+function requestUpdatedStatus {
+
+    echo;
+    command="/status?from=voice.control";
+    echo "-X POST -H \"Content-Type:application/json\" http://10.0.0.58:8085/messaging/api/vision/command${command}";
+    curl -X POST -H "Content-Type:application/json" http://10.0.0.58:8085/messaging/api/vision/command${command};
+    echo;
+    echo "================================================="
+
+    sleep 1
+}
+
+read -p "continue - get initial message broker values"
 getMessagingStatus
 
+read -p "continue - request updated status"
+requestUpdatedStatus
 
-    #######################################################################
-    # should cause vision controller to fail because messaging broker expects command url and params, not body
-    #echo;
-    #body='{"command":"test"}';
-    #echo "-X POST -H \"Content-Type:application/json\" -d '${body}' http://10.0.0.58:8085/messaging/api/robot/command";
-    #curl -X POST -H "Content-Type:application/json" -d ${body} http://10.0.0.58:8085/messaging/api/robot/command;
-    #echo;
+read -p "continue - get current message broker values"
+getMessagingStatus
 
-    #######################################################################
-    # should cause vision controller to fail because command url is empty
-    #echo;
-    #command="?uri=";
-    #echo "-X POST -H \"Content-Type:application/json\" http://10.0.0.58:8085/messaging/api/robot/command${command}";
-    #curl -X POST -H "Content-Type:application/json" http://10.0.0.58:8085/messaging/api/robot/command${command};
-    #echo;
+read -p "continue - request to initialize"
+initialize
 
-    #######################################################################
-    # should cause vision controller to fail because command sent to Node.js driver controller fails
-    #echo;
-    #command="?uri=/";
-    #echo "-X POST -H \"Content-Type:application/json\" http://10.0.0.58:8085/messaging/api/robot/command${command}";
-    #curl -X POST -H "Content-Type:application/json" http://10.0.0.58:8085/messaging/api/robot/command${command};
-    #echo;
+read -p "continue - get current message broker values"
+getMessagingStatus
 
-    #######################################################################
-    # should cause vision controller to fail because command sent to Node.js driver controller fails
-    #echo;
-    #command="?uri=/arduino";
-    #echo "-X POST -H \"Content-Type:application/json\" http://10.0.0.58:8085/messaging/api/robot/command${command}";
-    #curl -X POST -H "Content-Type:application/json" http://10.0.0.58:8085/messaging/api/robot/command${command};
-    #echo;
+read -p "continue - request to quit"
+quit
 
-    #######################################################################
-    # should cause vision controller to fail because command sent to Node.js driver controller fails
-    #echo;
-    #command="?uri=/arduino/api";
-    #echo "-X POST -H \"Content-Type:application/json\" http://10.0.0.58:8085/messaging/api/robot/command${command}";
-    #curl -X POST -H "Content-Type:application/json" http://10.0.0.58:8085/messaging/api/robot/command${command};
-    #echo;
-
-    #######################################################################
-    # should cause vision controller to fail because command sent to Node.js driver controller fails
-    echo;
-    command="?uri=/arduino/api/clr.usb.err";
-    echo "-X POST -H \"Content-Type:application/json\" http://10.0.0.58:8085/messaging/api/robot/command${command}";
-    curl -X POST -H "Content-Type:application/json" http://10.0.0.58:8085/messaging/api/robot/command${command};
-    echo;
-
-
+read -p "continue - get current message broker values"
 getMessagingStatus

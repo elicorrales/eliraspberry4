@@ -20,8 +20,7 @@ let visionReadyForNextCommand = true;
 // the voice control program will set to 'true' when there is a new command set inside this server
 let visionHasNewCommandWaiting = false;
 
-let latestCommandToRobotDrive = '';
-let latestStatusFromRobotDrive = '';
+let latestStatusFromVision = '';
 
 let latestCommandToVision = '';
 
@@ -38,10 +37,10 @@ const setVisionReadyForNewCommand = () => {
 const mainGetHandler = (request, response) => {
 
     console.log('');
-    console.log('client request: mainGetHandler: ' + request.path);
-    if (request.query !== undefined) console.log('request.query:' + JSON.stringify(request.query));
-    if (request.params !== undefined) console.log('request.params:' + JSON.stringify(request.params));
-    if (request.body !== undefined) console.log('request.body:' + JSON.stringify(request.body));
+    //console.log('client request: mainGetHandler: ' + request.path);
+    //if (request.query !== undefined) console.log('request.query:' + JSON.stringify(request.query));
+    //if (request.params !== undefined) console.log('request.params:' + JSON.stringify(request.params));
+    //if (request.body !== undefined) console.log('request.body:' + JSON.stringify(request.body));
 
 
     if (request.path === '/messaging/api/vision/ready') {
@@ -63,10 +62,14 @@ const mainGetHandler = (request, response) => {
     }
 
 
-    if (request.path === '/messaging/api/robot/command') {
-        console.log(latestCommandToRobotDrive);
+    if (request.path === '/messaging/api/vision/command') {
+        console.log('client request: mainGetHandler: ' + request.path);
+        if (request.query !== undefined) console.log('request.query:' + JSON.stringify(request.query));
+        if (request.params !== undefined) console.log('request.params:' + JSON.stringify(request.params));
+        if (request.body !== undefined) console.log('request.body:' + JSON.stringify(request.body));
+        console.log(latestCommandToVision);
         let command = {}
-        command.command = latestCommandToRobotDrive;
+        command.command = latestCommandToVision;
         console.log(command);
         response.status(200).send(JSON.stringify(command));
         return;
@@ -74,7 +77,7 @@ const mainGetHandler = (request, response) => {
 
     if (request.path === '/messaging/api/vision/status') {
         let theStatus = {}
-        theStatus.status = latestStatusFromRobotDrive;
+        theStatus.status = latestStatusFromVision;
         console.log(theStatus);
         response.status(200).send(JSON.stringify(theStatus));
         return;
@@ -82,6 +85,10 @@ const mainGetHandler = (request, response) => {
 
 
     if (request.path === '/messaging/api/vision/command') {
+        console.log('client request: mainGetHandler: ' + request.path);
+        if (request.query !== undefined) console.log('request.query:' + JSON.stringify(request.query));
+        if (request.params !== undefined) console.log('request.params:' + JSON.stringify(request.params));
+        if (request.body !== undefined) console.log('request.body:' + JSON.stringify(request.body));
         let command = {}
         command.command = latestCommandToVision;
         console.log(command);
@@ -105,68 +112,64 @@ const mainGetHandler = (request, response) => {
 app.get('/messaging/api/*', mainGetHandler);
 
 
+const postCommandHandler = (request, response) => {
+
+    console.log('');
+    console.log('client request: postCommandHandler: ' + request.path);
+    if (request.query !== undefined) console.log('request.query:' + JSON.stringify(request.query));
+    if (request.params !== undefined) console.log('request.params:' + JSON.stringify(request.params));
+    if (request.body !== undefined) console.log('request.body:' + JSON.stringify(request.body));
+
+
+    latestCommandToVision = request.params['0'];
+    let msg = {}
+    msg.msg = 'ok';
+    response.status(201).send(msg);
+    setNewCommandWaiting();
+
+}
+app.post('/messaging/api/vision/command/*', postCommandHandler);
+
+
 const mainPostHandler = (request, response) => {
 
     console.log('');
     console.log('client request: mainPostHandler: ' + request.path);
     if (request.query !== undefined) console.log('request.query:' + JSON.stringify(request.query));
     if (request.params !== undefined) console.log('request.params:' + JSON.stringify(request.params));
-    if (request.body !== undefined) console.log('request.body:' + JSON.stringify(request.body));
 
 
-    if (request.path === '/messaging/api/robot/command') {
-        latestCommandToVision = ''
-        latestCommandToRobotDrive = request.query.uri;
-        let msg = {}
-        msg.msg = 'ok';
-        response.status(201).send(msg);
-        setNewCommandWaiting();
-        return;
-    }
 
-
+    //vision control posts this to upload the complete status info
     if (request.path === '/messaging/api/vision/status') {
-        latestStatusFromRobotDrive = request.body;
+        if (request.body !== undefined) console.log('request.body:' + JSON.stringify(request.body));
+        latestStatusFromVision = request.body;
         let msg = {}
         msg.msg = 'ok';
         response.status(201).send(msg);
-        setVisionReadyForNewCommand();
         return;
     }
 
 
+    //vision control sends this to tell voice control that it IS quitting.
     if (request.path === '/messaging/api/vision/status/quit') {
-        latestStatusFromRobotDrive = {};
-        latestStatusFromRobotDrive['quit'] = '';
+        latestStatusFromVision = {};
+        latestStatusFromVision['quit'] = '';
+        let msg = {}
+        msg.msg = 'ok';
+        response.status(201).send(msg);
+        return;
+    }
+
+
+
+    if (request.path === '/messaging/api/vision/ready') {
         let msg = {}
         msg.msg = 'ok';
         response.status(201).send(msg);
         setVisionReadyForNewCommand();
         return;
     }
-
-
-    if (request.path === '/messaging/api/vision/command/status') {
-        latestStatusFromRobotDrive = '';
-        latestCommandToVision = 'status'
-        let msg = {}
-        msg.msg = 'ok';
-        response.status(201).send(msg);
-        setNewCommandWaiting();
-        return;
-    }
-
-
-    if (request.path === '/messaging/api/vision/command/quit') {
-        latestStatusFromRobotDrive = '';
-        latestCommandToVision = 'quit'
-        let msg = {}
-        msg.msg = 'ok';
-        response.status(201).send(msg);
-        setNewCommandWaiting();
-        return;
-    }
-
 
     console.log(request.method);
     console.log(request.params);
@@ -179,6 +182,9 @@ const mainPostHandler = (request, response) => {
 app.post('/messaging/api/*', mainPostHandler);
 
 
+
+
+
 const mainDeleteHandler = (request, response) => {
 
     console.log('');
@@ -188,12 +194,11 @@ const mainDeleteHandler = (request, response) => {
     if (request.body !== undefined) console.log('request.body:' + JSON.stringify(request.body));
 
 
-    if (request.path === '/messaging/api/robot/command') {
-        latestCommandToRobotDrive = '';
+    if (request.path === '/messaging/api/vision/command') {
+        latestCommandToVision = '';
         let msg = {}
         msg.msg = 'ok';
         response.status(201).send(msg);
-        setNewCommandWaiting();
         return;
     }
 
@@ -203,49 +208,44 @@ const mainDeleteHandler = (request, response) => {
         let msg = {}
         msg.msg = 'ok';
         response.status(201).send(msg);
-        setVisionReadyForNewCommand();
         return;
     }
 
     if (request.path === '/messaging/api/vision/status') {
-        latestStatusFromRobotDrive = request.body;
+        latestStatusFromVision = request.body;
         let msg = {}
         msg.msg = 'ok';
         response.status(201).send(msg);
-        setVisionReadyForNewCommand();
         return;
     }
 
 
     if (request.path === '/messaging/api/vision/status/quit') {
-        latestStatusFromRobotDrive = {};
-        latestStatusFromRobotDrive['quit'] = '';
+        latestStatusFromVision = {};
+        latestStatusFromVision['quit'] = '';
         let msg = {}
         msg.msg = 'ok';
         response.status(201).send(msg);
-        setVisionReadyForNewCommand();
         return;
     }
 
 
     if (request.path === '/messaging/api/vision/command/status') {
-        latestStatusFromRobotDrive = '';
+        latestStatusFromVision = '';
         latestCommandToVision = 'status'
         let msg = {}
         msg.msg = 'ok';
         response.status(201).send(msg);
-        setNewCommandWaiting();
         return;
     }
 
 
     if (request.path === '/messaging/api/vision/command/quit') {
-        latestStatusFromRobotDrive = '';
+        latestStatusFromVision = '';
         latestCommandToVision = 'quit'
         let msg = {}
         msg.msg = 'ok';
         response.status(201).send(msg);
-        setNewCommandWaiting();
         return;
     }
 

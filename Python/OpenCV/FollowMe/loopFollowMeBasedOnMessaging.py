@@ -45,6 +45,7 @@ robotMessagingUrl = 'http://10.0.0.58:8085/messaging/api'
 robotIsReadyToDrive = False
 robotDriveServerConnectionRefusedNumberOfTimes = 0;
 messagingServerConnectionRefusedNumberOfTimes = 0;
+thisVisionControlProgramIsReadyForNextCommand = True
 
 cap = None
 
@@ -113,7 +114,7 @@ def sendGetMessage(completeUriString):
     global messagingServerConnectionRefusedNumberOfTimes
 
     try:
-        print(robotMessagingUrl + completeUriString)
+        #print(robotMessagingUrl + completeUriString)
         response = requests.get(url=robotMessagingUrl + completeUriString, timeout=httpTimeout)
         messagingServerConnectionRefusedNumberOfTimes = 0;
         return response.text
@@ -139,10 +140,10 @@ def sendPostMessage(completeUriString, dataString = None):
 
     try:
         if dataString != None:
-            print(dataString)
+            #print(dataString)
             data = json.dumps(dataString)
-            print('sendPostMessage(): dataString to json data: ')
-            print(data)
+            #print('sendPostMessage(): dataString to json data: ')
+            #print(data)
             #headers = {'Content-type': 'application/json, text/plain', 'Accept': 'text/plain, application/json'}
             headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
             response = requests.post(url=robotMessagingUrl + completeUriString, data=data, headers=headers, timeout=httpTimeout)
@@ -174,6 +175,11 @@ def sendDeleteMessage(completeUriString):
 
     global messagingServerConnectionRefusedNumberOfTimes
 
+    print('')
+    print('')
+    print('')
+    print('sendDeleteMessage():')
+
     try:
         print(robotMessagingUrl + completeUriString)
         response = requests.delete(url=robotMessagingUrl + completeUriString, timeout=httpTimeout)
@@ -200,6 +206,11 @@ def sendDeleteMessage(completeUriString):
 
 ##################################################################
 def tryToGetJsonResponseFromRobotStatus():
+
+    print('')
+    print('')
+    print('')
+    print('tryToGetJsonResponseFromRobotStatus():')
 
     possibleJsonResp = sendRobotUrl('/nodejs/api/data')
 
@@ -230,9 +241,9 @@ def tryToGetLatestAndGoodStatusResponseFromRobot():
     tries = 0
     while tries < 2:
         response = tryToGetJsonResponseFromRobotStatus()
-        print(response)
-        if 'error' in response.keys():
-            if response['error'] == '':
+        #print(response)
+        if type(response) is dict and 'error':
+            if response['error'] == '' or response['error'] == 'NEEDINIT':
                 break
         tries += 1
         time.sleep(0.2)
@@ -260,70 +271,22 @@ def updateMessagingAndQuit():
 
 
 ##################################################################
-def getRobotStatusAndUpdateMessaging():
-
-    response = tryToGetLatestAndGoodStatusResponseFromRobot()
-    print('')
-    print('')
-    print('')
-    print('')
-    print(response)
-    print('')
-    print('')
-    print('')
-    print('')
-
-    visual = {
-            "noFaceDetected": noFaceDetected,
-            "faceDetected": faceDetected,
-            "faceCentered": faceCentered,
-            "tooManyFaces": tooManyFaces,
-            "faceMovedLeft": faceMovedLeft,
-            "faceMovedRight": faceMovedRight,
-            "faceTooClose": faceTooClose,
-            "faceTooFar": faceTooFar,
-            "faceIsJustRight": faceIsJustRight
-    }
-    response['visual'] = visual
+def clearMessagingNewCommandIsAvailable():
 
     print('')
     print('')
     print('')
-    print('')
-    print(response)
-    print('')
-    print('')
-    print('')
-    print('')
+    print('clearMessagingNewComnandIsAvailable()')
 
-    #sys.exit(1)
-
-    possibleJsonResp = sendPostMessage('/vision/status?from=vision', response)
-
-    return possibleJsonResp
-
-##################################################################
-def clearMessagingNewCommandAvailable():
     possibleJsonResp = sendDeleteMessage('/vision/new?from=vision')
     if 'ok' not in possibleJsonResp:
         print('')
         print('')
         print('')
-        print('error response back from clearMessagingNewCommandAvailable: ')
+        print('error response back from clearMessagingNewCommandIsAvailable: ')
         print(possibleJsonResp)
         cleanUp()
 
-
-##################################################################
-def clearMessagingLatestRobotCommand():
-    possibleJsonResp = sendDeleteMessage('/robot/command?from=vision')
-    if 'ok' not in possibleJsonResp:
-        print('')
-        print('')
-        print('')
-        print('error response back from clearMessagingLatestRobotCommand: ')
-        print(possibleJsonResp)
-        cleanUp()
 
 ##################################################################
 def clearMessagingLatestVisionCommand():
@@ -336,129 +299,28 @@ def clearMessagingLatestVisionCommand():
         print(possibleJsonResp)
         cleanUp()
 
-##################################################################
-def getRobotMessagingCommandIfAnyAndSendToRobot():
-
-    """
-    print('')
-    print('')
-    print('')
-    print('getRobotMessagingCommandIfAnyAndSendToRobot()')
-    """
-
-    possibleJsonResp = sendGetMessage('/robot/command?from=vision')
-    try:
-        response = json.loads(possibleJsonResp)
-    except:
-        track = traceback.format_exc()
-        print(track)
-        print('')
-        print('')
-        print('')
-        print('error response back from messaging request to get latest command to execute: ' + possibleJsonResp)
-        print('')
-        print('')
-        cleanUp()
-
-    """ 
-    print('')
-    print('')
-    print('')
-    print('getRobotMessagingCommandIfAnyAndSendToRobot(): response:')
-    print(response)
-    """
-
-    if 'command' in response.keys():
-        if response['command'] != '':
-            clearMessagingNewCommandAvailable()
-            clearMessagingLatestRobotCommand()
-            response = sendRobotUrl(response['command'])
-            if 'Cmd Sent' not in response:
-                #getRobotStatusAndUpdateMessaging()
-            #else:
-                print('')
-                print('')
-                print('')
-                print('Command NOT sent to Arduino?')
-                print(response)
-                print('')
-                print('')
-                print('')
-                cleanUp()
-        else:
-            print('')
-            print('')
-            print('')
-            print('Empty Command?')
-            print(response)
-            print('')
-            print('')
-            print('')
-            cleanUp()
-
-    else:
-        print('')
-        print('')
-        print('')
-        print('response back from get message(command): ')
-        print(response)
-        cleanUp()
 
 ##################################################################
-def getVisionMessagingCommandIfAnyAndExecute():
+def tellMessagingThatVisionControlIsReadyForNewCommand():
 
-    possibleJsonResp = sendGetMessage('/vision/command?from=vision')
+    global thisVisionControlProgramIsReadyForNextCommand
 
-    print('')
-    print('')
-    print('getVisionMessagingCommandIfAny()...')
-    print('')
-    print('')
-    print(possibleJsonResp)
-    print('')
-    print('')
-    print('')
-
-    try:
-        response = json.loads(possibleJsonResp)
-    except:
-        track = traceback.format_exc()
-        print(track)
+    possibleJsonResp = sendPostMessage('/vision/ready?from=vision')
+    if 'ok' not in possibleJsonResp:
         print('')
         print('')
         print('')
-        print('error response back from messaging request to get latest command to execute: ' + possibleJsonResp)
-        print('')
-        print('')
+        print('error response back from telling Messsaging That Vision was ready for new command: ')
+        print(possibleJsonResp)
         cleanUp()
 
-    print('')
-    print('')
-    print('getVisionMessagingCommandIfAny(): response:')
-    print('')
-    print('')
-    print(response)
-    print('')
-    print('')
-
-    if 'command' in response.keys():
-        command = response['command']
-        if command != '':
-            clearMessagingNewCommandAvailable()
-            clearMessagingLatestVisionCommand()
-            if command == 'status':
-                getRobotStatusAndUpdateMessaging()
-            elif command == 'quit':
-                updateMessagingAndQuit()
-
-    else:
-        print('error in response back from get new command if any : ')
-        print(response)
-        cleanUp()
+    thisVisionControlProgramIsReadyForNextCommand = True
 
 
 ##################################################################
 def checkIfMessagingHasNewCommandWaiting():
+
+    global thisVisionControlProgramIsReadyForNextCommand
 
     possibleJsonResp = sendGetMessage('/vision/new?from=vision')
     try:
@@ -477,6 +339,19 @@ def checkIfMessagingHasNewCommandWaiting():
         
     if 'newcmdavail' in response.keys():
         if response['newcmdavail'] == True:
+
+            if not thisVisionControlProgramIsReadyForNextCommand:
+                track = traceback.format_exc()
+                print(track)
+                print('')
+                print('')
+                print('')
+                print('error: vision was sent a new command without having posted that it was ready for next command')
+                print('')
+                print('')
+                cleanUp()
+
+            thisVisionControlProgramIsReadyForNextCommand = False
             print('')
             print('')
             print('')
@@ -499,20 +374,26 @@ def checkIfMessagingHasNewCommandWaiting():
 ##################################################################
 def executeCommandIfAnyFromMessaging():
 
-    newCommandWaiting = checkIfMessagingHasNewCommandWaiting()
-    if newCommandWaiting:
-        print('executCommandIfAny... possible new robot command is waiting...')
-        getRobotMessagingCommandIfAnyAndSendToRobot()
+
+    thisVisionControlProgramIsReadyForNextCommand = True
 
     newCommandWaiting = checkIfMessagingHasNewCommandWaiting()
     if newCommandWaiting:
-        print('executCommandIfAny... possible new vision command is waiting...')
+        print('')
+        print('')
+        print('')
+        print('   executCommandIfAny... possible new vision command is waiting...')
         getVisionMessagingCommandIfAnyAndExecute()
 
 
 ##################################################################
 def sendRobotUrl(command):
 
+    print('')
+    print('')
+    print('')
+    print('sendRobotUrl('+command+')')
+    print('')
     global robotDriveServerConnectionRefusedNumberOfTimes
 
     try:
@@ -536,11 +417,17 @@ def sendRobotUrl(command):
 
 ##################################################################
 def initRobotDrive():
+
+    print('')
+    print('')
+    print('')
+    print('initRobotDrive()')
+    print('')
     respText = sendRobotUrl('/nodejs/api/data')
     if '"volts":-1' in respText:
         say('Arduino is Up, but Not Roboclaw')
         cleanUp()
-    time.sleep(0.5)
+    time.sleep(1)
     respText = sendRobotUrl('/arduino/api/clr.usb.err')
     if 'Cmd Sent To Arduino' in respText:
         time.sleep(1)
@@ -624,6 +511,119 @@ def moveMoveForwardOrBackForCorrectDistanceAway():
 
 ##################################################################
 ##################################################################
+# functions related to messaging commands
+##################################################################
+##################################################################
+
+##################################################################
+# the main messaging command router to related function
+def getVisionMessagingCommandIfAnyAndExecute():
+
+    possibleJsonResp = sendGetMessage('/vision/command?from=vision')
+
+    print('')
+    print('')
+    print('getVisionMessagingCommandIfAny()...')
+    print('')
+
+    try:
+        response = json.loads(possibleJsonResp)
+    except:
+        track = traceback.format_exc()
+        print(track)
+        print('')
+        print('')
+        print('')
+        print('error response back from messaging request to get latest command to execute: ' + possibleJsonResp)
+        print('')
+        print('')
+        cleanUp()
+
+
+    if 'command' in response.keys():
+        command = response['command']
+        if command != '':
+            clearMessagingNewCommandIsAvailable()
+            clearMessagingLatestVisionCommand()
+            if command == 'status':
+                getRobotStatusAndUpdateMessaging()
+                tellMessagingThatVisionControlIsReadyForNewCommand()
+            elif command == 'quit':
+                # this part isnt really to accept another command, but rather
+                # to make sure the messaging system is in a good state for next run of this program.
+                tellMessagingThatVisionControlIsReadyForNewCommand()
+                updateMessagingAndQuit()
+            elif command == 'initialize':
+                initialize()
+                tellMessagingThatVisionControlIsReadyForNewCommand()
+
+    else:
+        print('error in response back from get new command if any : ')
+        print(response)
+        cleanUp()
+
+##################################################################
+def getRobotStatusAndUpdateMessaging():
+
+    response = tryToGetLatestAndGoodStatusResponseFromRobot()
+    """
+    print('')
+    print('')
+    print('')
+    print('')
+    print(response)
+    print('')
+    print('')
+    print('')
+    print('')
+    """
+
+    visual = {
+            "noFaceDetected": noFaceDetected,
+            "faceDetected": faceDetected,
+            "faceCentered": faceCentered,
+            "tooManyFaces": tooManyFaces,
+            "faceMovedLeft": faceMovedLeft,
+            "faceMovedRight": faceMovedRight,
+            "faceTooClose": faceTooClose,
+            "faceTooFar": faceTooFar,
+            "faceIsJustRight": faceIsJustRight
+    }
+    response['visual'] = visual
+
+    """
+    print('')
+    print('')
+    print('')
+    print('')
+    print(response)
+    print('')
+    print('')
+    print('')
+    print('')
+    """
+
+    possibleJsonResp = sendPostMessage('/vision/status?from=vision', response)
+    if 'ok' not in possibleJsonResp:
+        print('error in response back when trying to post updated status to messaging: ')
+        print(response)
+        cleanUp()
+
+
+##################################################################
+def initialize():
+    robotIsReadyToDrive = initRobotDrive()
+    if not robotIsReadyToDrive:
+        robotIsReadyToDrive = initRobotDrive()
+        if not robotIsReadyToDrive:
+            robotIsReadyToDrive = initRobotDrive()
+
+    if not robotIsReadyToDrive:
+        say('Robot not initialized')
+
+
+##################################################################
+##################################################################
 # main program
 ##################################################################
 ##################################################################
@@ -633,17 +633,6 @@ if __name__ == '__main__':
 
 initCamera()
 
-"""
-robotIsReadyToDrive = initRobotDrive()
-if not robotIsReadyToDrive:
-    robotIsReadyToDrive = initRobotDrive()
-    if not robotIsReadyToDrive:
-        robotIsReadyToDrive = initRobotDrive()
-
-if not robotIsReadyToDrive:
-    say('Robot not initialized')
-    cleanUp()
-"""
 
 # only attempt to read if it is opened
 if cap.isOpened:
