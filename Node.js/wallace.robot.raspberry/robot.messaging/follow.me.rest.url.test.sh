@@ -2,20 +2,9 @@
 
 
 function  getMessagingStatus {
-    echo http://10.0.0.58:8085/messaging/api/vision/ready?from=voice.control;
-    curl http://10.0.0.58:8085/messaging/api/vision/ready?from=voice.control;
-    echo;
 
-    echo http://10.0.0.58:8085/messaging/api/vision/new?from=voice.control;
-    curl http://10.0.0.58:8085/messaging/api/vision/new?from=voice.control;
-    echo;
-
-    echo http://10.0.0.58:8085/messaging/api/vision/status?from=voice.control;
-    curl http://10.0.0.58:8085/messaging/api/vision/status?from=voice.control;
-    echo;
-
-    echo http://10.0.0.58:8085/messaging/api/vision/command?from=voice.control;
-    curl http://10.0.0.58:8085/messaging/api/vision/command?from=voice.control;
+    echo http://10.0.0.58:8085/messaging/api/status;
+    curl http://10.0.0.58:8085/messaging/api/status;
     echo;
 
     echo "================================================="

@@ -27,7 +27,7 @@ parser.add_argument('--limit-buffer',dest='limitBuffer', action='store_true')
 parser.add_argument('--speak',dest='speak', action='store_true')
 args = parser.parse_args()
 
-width=args.width
+frameWidth=args.width
 height=args.height
 FPS=args.FPS
 httpTimeout=args.httpTimeout
@@ -62,9 +62,12 @@ faceCentered   = False
 tooManyFaces   = False
 faceMovedLeft  = False
 faceMovedRight = False
-faceTooClose   = False
-faceTooFar     = False
-faceIsJustRight= False
+faceIsTooClose = False
+faceIsTooFar   = False
+faceJustFine   = False
+faceIsToTheLeft = False
+faceIsToTheRight = False
+faceWidth = 0
 
 lastTimeMoved = time.time()
 
@@ -75,7 +78,7 @@ def initCamera():
     global cap
     cap = cv2.VideoCapture(0)
     cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, frameWidth)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
     cap.set(cv2.CAP_PROP_FPS, FPS)
 
@@ -260,7 +263,7 @@ def updateMessagingAndQuit():
     print('')
     print('')
     print('')
-    possibleJsonResp = sendPostMessage('/vision/status/quit?from=vision')
+    possibleJsonResp = sendDeleteMessage('/vision/status/quit?from=vision')
 
     print(possibleJsonResp)
     print('')
@@ -474,38 +477,77 @@ def moveLeftOrRightToCenterOnFace(deltaLastTimeMoved, deltaLeftRight, leftEdge, 
 
         lastTimeMoved = time.time()
 
+##################################################################
+def getFaceIsLeftOrRightOrCentered(deltaLeftRight):
+    global faceCentered
+    global faceMovedLeft
+    global faceMovedRight
+    global faceIsJustRight
+    global faceIsToTheLeft
+    global faceIsToTheRight
+
+    # face in more or less in center
+    if deltaLeftRight <= 45:
+
+        faceCentered = True
+        faceMovedLeft = False
+        faceMovedRight = False
+
+    #face is to one side or another
+    else:
+        faceCentered = False
+        faceIsJustRight = False
+
+        if leftEdge > rightEdge:
+            faceIsToTheRight = True
+            faceIsToTheLeft = False
+        else:
+            faceIsToTheLeft = True
+            faceIsToTheRight = False
 
 ##################################################################
-def moveMoveForwardOrBackForCorrectDistanceAway():
+def getIsFaceTooCloseOrTooFarOrJustFine():
+    global faceWidth
+    if faceWidth > minDist:
+        faceJustFine  = False
+        faceIsTooClose = True
+    elif faceWidth < maxDist:
+        faceJustFine  = False
+        faceIsTooFar = True
+    elif faceWidth >= maxDist and w<=minDist:
+        faceIsTooClose = False
+        faceIsTooFar = False
+        faceJustFine  = True
+
+
+##################################################################
+def moveForwardOrBackForCorrectDistanceAway():
     global lastTimeMoved
-    global faceCentered
-    global faceIsJustRight
-    global faceTooClose
-    global faceTooFar
+    global faceJustFine 
+    global faceIsTooClose
+    global faceIsTooFar
+    global faceWidth
 
-    if not faceCentered:
-        say('center')
-        faceCentered = True
 
-    if w > minDist and deltaLastTimeMoved > loopDelay:
-        faceIsJustRight = False
-        if not faceTooClose:
+    if faceWidth > minDist and deltaLastTimeMoved > loopDelay:
+        faceJustFine  = False
+        if not faceIsTooClose:
             say('close')
-            faceTooClose = True
+            faceIsTooClose = True
         sendRobotDriveCommand('backward',fwdBakSpeed)
         lastTimeMoved = time.time()
-    elif w < maxDist and deltaLastTimeMoved > loopDelay:
-        faceIsJustRight = False
-        if not faceTooFar:
+    elif faceWidth < maxDist and deltaLastTimeMoved > loopDelay:
+        faceJustFine  = False
+        if not faceIsTooFar:
             say('far')
-            faceTooFar = True
+            faceIsTooFar = True
         sendRobotDriveCommand('forward',fwdBakSpeed)
         lastTimeMoved = time.time()
-    elif w >= maxDist and w<=minDist:
-        faceTooClose = False
-        faceTooFar = False
-        if not faceIsJustRight:
-            faceIsJustRight = True
+    elif faceWidth >= maxDist and w<=minDist:
+        faceIsTooClose = False
+        faceIsTooFar = False
+        if not faceJustFine :
+            faceJustFine  = True
             say('Stay there')
 
 
@@ -545,8 +587,19 @@ def getVisionMessagingCommandIfAnyAndExecute():
         if command != '':
             clearMessagingNewCommandIsAvailable()
             clearMessagingLatestVisionCommand()
-            if command == 'status':
-                getRobotStatusAndUpdateMessaging()
+            
+            print('')
+            print('')
+            print('')
+            print('new command received: ' + command)
+            print('')
+            print('')
+            if command == 'robotstatus':
+                getLatestUpdatedRobotStatus = True
+                getRobotStatusAndUpdateMessaging(getLatestUpdatedRobotStatus)
+                tellMessagingThatVisionControlIsReadyForNewCommand()
+            elif command == 'visionstatus':
+                getVisionOnlyStatusAndUpdateMessaging()
                 tellMessagingThatVisionControlIsReadyForNewCommand()
             elif command == 'quit':
                 # this part isnt really to accept another command, but rather
@@ -556,6 +609,12 @@ def getVisionMessagingCommandIfAnyAndExecute():
             elif command == 'initialize':
                 initialize()
                 tellMessagingThatVisionControlIsReadyForNewCommand()
+            else:
+                print('')
+                print('')
+                print('')
+                print('Unknown command from messaging: ' + command)
+                cleanUp()
 
     else:
         print('error in response back from get new command if any : ')
@@ -563,20 +622,17 @@ def getVisionMessagingCommandIfAnyAndExecute():
         cleanUp()
 
 ##################################################################
-def getRobotStatusAndUpdateMessaging():
+def getVisionOnlyStatusAndUpdateMessaging():
+    getRobotStatusAndUpdateMessaging()
 
-    response = tryToGetLatestAndGoodStatusResponseFromRobot()
-    """
-    print('')
-    print('')
-    print('')
-    print('')
-    print(response)
-    print('')
-    print('')
-    print('')
-    print('')
-    """
+##################################################################
+def getRobotStatusAndUpdateMessaging(getLatestUpdatedRobotStatus=False):
+
+    if getLatestUpdatedRobotStatus:
+        response = tryToGetLatestAndGoodStatusResponseFromRobot()
+
+    else:
+        response = {}
 
     visual = {
             "noFaceDetected": noFaceDetected,
@@ -585,23 +641,15 @@ def getRobotStatusAndUpdateMessaging():
             "tooManyFaces": tooManyFaces,
             "faceMovedLeft": faceMovedLeft,
             "faceMovedRight": faceMovedRight,
-            "faceTooClose": faceTooClose,
-            "faceTooFar": faceTooFar,
-            "faceIsJustRight": faceIsJustRight
+            "faceIsTooClose": faceIsTooClose,
+            "faceIsTooFar": faceIsTooFar,
+            "faceIsToTheLeft": faceIsToTheLeft, 
+            "faceIsToTheRight": faceIsToTheRight,
+            "faceWidth" : str(faceWidth)
     }
+
     response['visual'] = visual
 
-    """
-    print('')
-    print('')
-    print('')
-    print('')
-    print(response)
-    print('')
-    print('')
-    print('')
-    print('')
-    """
 
     possibleJsonResp = sendPostMessage('/vision/status?from=vision', response)
     if 'ok' not in possibleJsonResp:
@@ -653,62 +701,57 @@ if cap.isOpened:
 
 
         if len(faces) < 1:
-            if not noFaceDetected:
-                say('No one')
-                noFaceDetected = True
+            noFaceDetected = True
             faceDetected = False
             tooManyFaces = False
             faceCentered = False
             faceMovedLeft = False
             faceMovedRight = False
-            faceTooClose   = False
-            faceTooFar     = False
+            faceIsTooClose   = False
+            faceIsTooFar     = False
             faceIsJustRight = False
-            continue
+            #continue
 
-        elif len(faces) > 2:
-            if not tooManyFaces:
-                say('too many faces')
-                tooManyFaces = True
+        elif len(faces) > 1:
+            tooManyFaces = True
             noFaceDetected = False
             faceDetected = False
-            continue
+            #continue
 
         elif len(faces) > 0:
             noFaceDetected = False
-            if not faceDetected:
-                say('I see you')
-                faceDetected = True
-                #continue
+            faceDetected = True
+            #continue
 
-        tooManyFaces = False
-        faceIdx = 0
-        for (x, y, w, h) in faces:
+        if not tooManyFaces:
+            print('')
+            print('')
+            print('')
+            print(faces)
+            print('')
+            print('')
+            print('')
+            for (x, y, w, h) in faces:
 
-            noFaceDetected = False
+                faceWidth = w
 
-            leftEdge = x
-            rightEdge = width - (x + w)
-            print(leftEdge,' ',rightEdge)
-            deltaLeftRight = abs(leftEdge - rightEdge)
+                leftEdge = x
+                rightEdge = frameWidth - (x + w)
 
-            deltaLastTimeMoved = time.time() - lastTimeMoved
+                deltaLeftRight = abs(leftEdge - rightEdge)
 
-            if deltaLeftRight <= 45:
+                deltaLastTimeMoved = time.time() - lastTimeMoved
 
-                faceMovedLeft = False
-                faceMovedRight = False
+                print('lr:',deltaLeftRight,'fw:',faceWidth,'lft:',leftEdge,'rht:',rightEdge)
 
-            else:
-                faceCentered = False
-                faceIsJustRight = False
+                getFaceIsLeftOrRightOrCentered(deltaLeftRight)
 
+                getIsFaceTooCloseOrTooFarOrJustFine()
 
-
-            #moveMoveForwardOrBackForCorrectDistanceAway()
+                #moveForwardOrBackForCorrectDistanceAway()
 
  
-            #moveLeftOrRightToCenterOnFace(deltaLastTimeMoved, deltaLeftRight, leftEdge, rightEdge)
+                #moveLeftOrRightToCenterOnFace(deltaLastTimeMoved, deltaLeftRight, leftEdge, rightEdge)
  
 else:
     print("Failed to open capture device")
