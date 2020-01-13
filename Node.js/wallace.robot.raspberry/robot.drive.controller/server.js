@@ -5,6 +5,7 @@ const serial = require('serialport');
 const readline = require('@serialport/parser-readline');
 
 const thisServerPort = 8084;
+const messagingServerPort = 8085;
 
 //const raspberry2arduinoBaud = 9600;
 //const raspberry2arduinoBaud = 19200;
@@ -257,6 +258,8 @@ app.use((request, response, next) => {
   response.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
   next();
 });
+
+const axios = require('axios');
 
 
 
@@ -541,6 +544,38 @@ const nodeJsApiNoCommandHandler = (request, response) => {
 }
 app.get('/nodejs/api', nodeJsApiNoCommandHandler);
 
+
+///////node.js api SHUTDOWN command handler/////////////////////////////////////////////////////
+const nodeJsApiShutdownCommandHandler = (request, response) => {
+    console.log('client request: SHUTDOWN handler : ' + request.path);
+    let msg = {}
+    msg.msg = "ok";
+    response.status(201).send(msg);
+
+    axios.delete('http://localhost:'+ messagingServerPort + '/messaging/api/robot.drive/quit')
+    .then(response => {
+        console.log('registered with messaging that this program is shutting down.');
+        server.close()
+        process.exit();
+    })
+    .catch(error => {
+        axios.delete('http://localhost:'+ messagingServerPort + '/messaging/api/robot.drive/quit')
+        .then(response => {
+            console.log('registered with messaging that this program is shutting down.');
+            server.close()
+            process.exit();
+        })
+        .catch(error => {
+            console.log('gave up trying to register with messaging that this program is shutting down.');
+            server.close()
+            process.exit();
+        });
+    });
+ 
+}
+app.post('/nodejs/api/shutdown', nodeJsApiShutdownCommandHandler);
+
+
 ///////node.js NO command handler/////////////////////////////////////////////////////
 const nodeJsNoCommandHandler = (request, response) => {
 
@@ -564,7 +599,7 @@ app.get('/node.js', nodeJsBad);
 
 
 
-app.listen(thisServerPort, () => {
+const server = app.listen(thisServerPort, () => {
     console.log('HTTP Raspberry Pi Server is Up at ', thisServerPort);
 });
 
