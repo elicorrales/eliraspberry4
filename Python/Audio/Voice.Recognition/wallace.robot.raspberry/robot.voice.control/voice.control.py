@@ -272,6 +272,8 @@ def saveJsonAndCleanUp():
     print('')
     print('')
 
+    registerWithMessagingThatThisProgramIsShuttingDown()
+
     status = tellRobotVisionDriveControlToQuit()
 
     print('')
@@ -625,7 +627,41 @@ def findTheNoiseLevel(phraseFrames):
     return False
 
 ##################################################################
-def doAction(action, successText = 'Success', successDelay = 1, failureText = 'Failure'):
+def getIsFaceDetected():
+        status = getVisionOnlyStatus()
+        print('')
+        print(status)
+        print('')
+        if status == 'Refused':
+            say('Refused', 1.5)
+            saveJsonAndCleanUp()
+
+        elif status == None:
+            say('Status None.', 1.5)
+            return False, status
+
+        elif type(status) is dict and 'visual' in status.keys():
+            visual = status['visual']
+            if type(visual) is dict and 'faceDetected' in visual.keys():
+                if visual['faceDetected'] == True:
+                    return True, status
+                else:
+                    return False, status
+            else:
+                say('Missing face detected', 1.5)
+                saveJsonAndCleanUp()
+        else:
+            say(status, 2)
+            saveJsonAndCleanUp()
+
+        return False, status
+
+##################################################################
+def doAction(action):
+
+    successText = 'Need Success Text'
+    failureText = 'Need Failure Text'
+
     if action == 'doOfferHelp':
         offerHelp()
         return
@@ -634,7 +670,7 @@ def doAction(action, successText = 'Success', successDelay = 1, failureText = 'F
         listPhrasesTrained(sayPhrases)
         return
     if action == 'doGoodBye':
-        doGoodBye(successText)
+        doGoodBye('Good bye.')
         return
     if action == 'doCurrentTime':
         sayCurrentTime()
@@ -644,28 +680,41 @@ def doAction(action, successText = 'Success', successDelay = 1, failureText = 'F
         if not robotIsReadyToDrive:
             robotIsReadyToDrive = initRobotDrive()
             if robotIsReadyToDrive:
-                say(successText, 1.5)
+                say('Robot is ready.', 1.5)
             else:
                 say('Robot Init Error', 1.5)
         return
     if action == 'doDoYouSeeMe':
-        getUpdateLatestStatus = True
-        status = getRobotStatus(getUpdateLatestStatus)
+        detected, status = getIsFaceDetected()
+        if detected:
+            say('Yes I see you.', 1.5)
+        else:
+            say('No.', 1)
+        return
+
+    if action == 'doWhereAmI':
+        detected, status = getIsFaceDetected()
+        if not detected:
+            detected, status = getIsFaceDetected()
+            if not detected:
+                detected, status = getIsFaceDetected()
+                if not detected:
+                    say('But I dont see you.', 1.5)
+                    return
+
         print('')
         print(status)
         print('')
-        if status == 'Refused':
-            say('Refused', successDelay)
-
-        elif status == None:
-            say('Status None.', successDelay)
-
-        elif status != None and 'visual' in status.keys():
-            visual = status['visual']
-            if 'faceDetected' in visual.keys() and visual['faceDetected'] == True:
-                say(successText, successDelay)
-            else:
-                say(failureText, successDelay)
+        visual = status['visual']
+        faceWidth = visual['faceWidth']
+        if visual['faceCentered'] == True:
+            say('You are centered, ' + faceWidth, 2)
+        elif visual['faceIsToTheLeft'] == True:
+            say('You are to my left, ' + faceWidth, 2)
+        elif visual['faceIsToTheRight'] == True:
+            say('You are to my right, ' + faceWidth, 2)
+        else:
+            say('I am not sure.', 1.5)
         return
 
     if action == 'doForward':
@@ -844,6 +893,46 @@ def sendPostMessage(completeUriString):
 
 
 ##################################################################
+def sendDeleteMessage(completeUriString):
+
+    global robotDriveServerConnectionRefusedNumberOfTimes
+
+    try:
+        print(robotMessagingUrl + completeUriString)
+        response = requests.delete(url=robotMessagingUrl + completeUriString, timeout=httpTimeout)
+
+        robotDriveServerConnectionRefusedNumberOfTimes = 0;
+        return response.text
+    except (socket.timeout, urllib3.exceptions.ReadTimeoutError, requests.exceptions.ReadTimeout):
+        return 'Timeout'
+    except (requests.exceptions.ConnectionError, ConnectionRefusedError):
+        time.sleep(0.2)
+        robotDriveServerConnectionRefusedNumberOfTimes += 1;
+        if robotDriveServerConnectionRefusedNumberOfTimes > 3:
+            saveJsonAndCleanUp()
+        return 'Refused'
+    except:
+        track = traceback.format_exc()
+        print(track)
+        say('Other Communication Error', 0)
+        saveJsonAndCleanUp()
+
+
+##################################################################
+def registerWithMessagingThatThisProgramIsShuttingDown():
+
+    print('')
+    print('registerWithMessagingThatThisProgramIsShuttingDown()')
+    print('')
+
+    possibleJsonResp = sendDeleteMessage('/voice/status/quit?from=voice.control')
+    if 'ok' not in possibleJsonResp:
+        possibleJsonResp = sendDeleteMessage('/voice/status/quit?from=voice.control')
+        if 'ok' not in possibleJsonResp:
+            print('Unable to register with messaging that we are shutting down.')
+
+
+##################################################################
 def checkIfVisionRobotControlIsReadyForNextCommand():
 
     print('')
@@ -958,16 +1047,20 @@ def tellRobotVisionDriveControlToQuit():
 
 
 ##################################################################
-def getRobotStatus(getUpdatedStatus=False):
+def getVisionOnlyStatus():
+    return getRobotStatus()
 
-    if getUpdatedStatus:
+##################################################################
+def getRobotStatus(getUpdatedRobotStatus=False):
+
+    if getUpdatedRobotStatus:
         print('')
         print('')
         print('')
-        print('getRobotStatus() : send post command requesting latest status...')
+        print('getRobotStatus() : send post command requesting latest robot status...')
         print('')
 
-        possibleJsonResp = sendPostMessage('/vision/command/status?from=voice.control')
+        possibleJsonResp = sendPostMessage('/vision/command/robotstatus?from=voice.control')
         if 'Refused' in possibleJsonResp:
             status = 'Refused'
             return status
@@ -991,6 +1084,40 @@ def getRobotStatus(getUpdatedStatus=False):
         print('')
 
         waitForVisionRobotControlToBeReadyForNextCommand()
+
+    else:
+        print('')
+        print('')
+        print('')
+        print('getRobotStatus() : send post command requesting updated vision-only status...')
+        print('')
+
+        possibleJsonResp = sendPostMessage('/vision/command/visionstatus?from=voice.control')
+        if 'Refused' in possibleJsonResp:
+            status = 'Refused'
+            return status
+        try:
+            response = json.loads(possibleJsonResp)
+            #print(response)
+        except:
+            track = traceback.format_exc()
+            print(track)
+            print('')
+            print(possibleJsonResp)
+            print('')
+            print('NO STATUS')
+            print('')
+            #saveJsonAndCleanUp()
+            status = None
+            return status
+
+        print('')
+        print('getRobotStatus() : now waiting for vision to post status, to get latest status...')
+        print('')
+
+        waitForVisionRobotControlToBeReadyForNextCommand()
+
+
 
     print('')
     print('getRobotStatus() : get status...')
@@ -1021,7 +1148,7 @@ def getRobotStatus(getUpdatedStatus=False):
     print(response)
 
 
-    if 'status' in response.keys() and response['status'] != '':
+    if type(response) is dict and 'status' in response.keys() and response['status'] != '':
         status = response['status']
     else:
         status = None
@@ -1119,14 +1246,7 @@ def actOnKnownPhrases(phraseText, metaDataForLatestRecordedPhrase):
             return
 
     if conversation['action'] != 'none' and conversation['action'] != '':
-        if 'successresp' in conversation.keys() and 'successdelay' in conversation.keys() and 'failresp' in conversation.keys():
-            doAction(conversation['action'], conversation['successresp'], conversation['successdelay'], conversation['failresp'])
-        elif 'successresp' in conversation.keys() and 'successdelay' in conversation.keys():
-            doAction(conversation['action'], conversation['successresp'], conversation['successdelay'])
-        elif 'successresp' in conversation.keys():
-            doAction(conversation['action'], conversation['successresp'])
-        else:
-            doAction(conversation['action'], phraseText)
+        doAction(conversation['action'])
         return
 
 
