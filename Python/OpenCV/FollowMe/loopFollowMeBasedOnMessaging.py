@@ -609,6 +609,20 @@ def getVisionMessagingCommandIfAnyAndExecute():
             elif command == 'initialize':
                 initialize()
                 tellMessagingThatVisionControlIsReadyForNewCommand()
+            elif command == 'forward':
+                sendRobotDriveCommand('forward',fwdBakSpeed)
+                tellMessagingThatVisionControlIsReadyForNewCommand()
+            elif command == 'backward':
+                sendRobotDriveCommand('backward',fwdBakSpeed)
+                tellMessagingThatVisionControlIsReadyForNewCommand()
+            elif command == 'left':
+                sendRobotDriveCommand('left',fwdBakSpeed)
+                tellMessagingThatVisionControlIsReadyForNewCommand()
+            elif command == 'right':
+                sendRobotDriveCommand('right',fwdBakSpeed)
+                tellMessagingThatVisionControlIsReadyForNewCommand()
+
+
             else:
                 print('')
                 print('')
