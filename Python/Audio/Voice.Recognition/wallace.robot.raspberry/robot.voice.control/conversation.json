@@ -14,11 +14,14 @@
     "where am i":{"firstresp":"wait","delay":0.5,"verify":"Where are you?","action":"doWhereAmI"},
     "you are too close":{"firstresp":"So sorry.","delay":1,"verify":"I am too close?","action":"doBackward"},
     "you are too far":{"firstresp":"So sorry.","delay":1,"verify":"I am too far?","action":"doForward"},
+    "watch me":{"firstresp":"Very well.","delay":1,"verify":"Watch you?","action":"doStartContinuousVisualStatusUpdate"},
     "status please":{"firstresp":"not implemented", "delay":1, "action":""},
     "what time is it":{"firstresp":"", "delay":0, "action":"doCurrentTime"},
     "wallace":{"firstresp":"how may I help you?", "delay":2, "action":"none"},
     "forward":{"firstresp":"", "delay":1.2, "action":"doForward"},
-    "back":{"firstresp":"", "delay":1.2, "action":"doBackward"},
-    "left":{"firstresp":"", "delay":1.2, "action":"doLeft"},
-    "right":{"firstresp":"", "delay":1.2, "action":"doRight"}
+    "back":{"firstresp":"Very well.", "delay":1.2, "action":"doBackward"},
+    "left":{"firstresp":"Very well.", "delay":1.2, "action":"doLeft"},
+    "right":{"firstresp":"Very well.", "delay":1.2, "action":"doRight"},
+    "stop":{"firstresp":"Very well.", "delay":1.2, "action":"doStop"},
+    "come here":{"firstresp":"Very well.", "delay":1.2, "action":"doStartComeHere"}
 }

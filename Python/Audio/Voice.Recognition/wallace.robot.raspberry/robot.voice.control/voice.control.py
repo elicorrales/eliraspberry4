@@ -35,9 +35,6 @@ parser.add_argument('--find-noise-level', dest='findNoiseLevel', action='store_t
 parser.add_argument('--hands-free', dest='handsFree', action='store_true')
 parser.add_argument('--semi-hands-free', dest='semiHandsFree', action='store_true')
 parser.add_argument('--http-timeout',type=float, dest='httpTimeout', required=True)
-parser.add_argument('--lSpeed',type=int, dest='leftSpeed', required=True)
-parser.add_argument('--rSpeed',type=int, dest='rightSpeed', required=True)
-parser.add_argument('--fbSpeed',type=int, dest='fwdBakSpeed', required=True)
 parser.set_defaults(
         maxBackgroundStartVolume=9, 
         maxBackgroundStartCrossings=24, 
@@ -64,9 +61,6 @@ findNoiseLevel=args.findNoiseLevel
 handsFree=args.handsFree
 semiHandsFree=args.semiHandsFree
 httpTimeout=args.httpTimeout
-leftSpeed=args.leftSpeed
-rightSpeed=args.rightSpeed
-fwdBakSpeed=args.fwdBakSpeed
 
 findNoiseLevelReadyToBegin = False
 foundMaxBackgroundStartVolumeLevel = False
@@ -90,6 +84,8 @@ saveJsonAndCleanUpAlreadyCalledOnce = False
 robotMessagingUrl = 'http://10.0.0.58:8085/messaging/api'
 robotIsReadyToDrive = False
 robotDriveServerConnectionRefusedNumberOfTimes = 0;
+
+startContinuousVisualStatusUpdate = False
 
 tts = pyttsx3.init()
 
@@ -150,7 +146,7 @@ def getIsThisCorrectUserInput(justGetYesOrNoResponse, triedAgainForYesNo):
             difference, numMatches, bestMatch = findBestMatch(metaData, yesNoQuitArray)
             print('difference: ', difference, ', numMatches: ', numMatches)
 
-        if (difference < 50 and numMatches > 5) or (difference < 300 and numMatches > 10)  or (difference < 400 and numMatches > 13) or (difference < 500 and numMatches > 15):
+        if (difference < 300 and numMatches > 10) or (difference < 400 and numMatches > 12) or (difference < 450 and numMatches > 13) or (difference < 500 and numMatches > 15):
 
             newYesNoQuitAddedThisTime = True
             print('Found good match...')
@@ -442,11 +438,7 @@ def findBestMatch(latestPhraseData, phrasesArray):
             leastDiff = difference
             bestMatchIndex = i
 
-            if not dictHasKey(phraseData,'phrase'):
-                print('Error: Num Array Items: ', str(numPhrases), ', idx: ', str(i), ' is missing \'phrase\'')
-                saveJsonData()
-                sys.exit(1)
-            if phraseData['phrase'] == previousPhrase:
+            if previousPhrase == '' or phraseData['phrase'] == previousPhrase:
                 numMatches += 1
             else:
                 numMatches = 0
@@ -657,6 +649,36 @@ def getIsFaceDetected():
         return False, status
 
 ##################################################################
+def actOnKnownPhrases(phraseText, metaDataForLatestRecordedPhrase):
+
+    try:
+        conversation = conversationMap[phraseText]
+    except (KeyError):
+        say('Do not know conversation for ' + phraseText, 2.5)
+        return
+    except:
+        track = traceback.format_exc()
+        print(track)
+        return
+
+    if phraseText == 'noise':
+        if startContinuousVisualStatusUpdate:
+            sayLatestVisualStatus()
+        return
+
+    if conversation['firstresp'] != 'none' and conversation['firstresp'] != '':
+        say(conversation['firstresp'], int(conversation['delay']))
+        if conversation['action'] == 'none' or conversation['action'] == '':
+            return
+
+    if conversation['action'] != 'none' and conversation['action'] != '':
+        doAction(conversation['action'])
+        return
+
+
+    say('Do not know what to do with ' + phraseText, 2)
+
+##################################################################
 def doAction(action):
 
     successText = 'Need Success Text'
@@ -676,85 +698,157 @@ def doAction(action):
         sayCurrentTime()
         return
     if action == 'doInitRobotDrive':
-        global robotIsReadyToDrive
-        if not robotIsReadyToDrive:
-            robotIsReadyToDrive = initRobotDrive()
-            if robotIsReadyToDrive:
-                say('Robot is ready.', 1.5)
-            else:
-                say('Robot Init Error', 1.5)
+        doInitRobotDrive()
         return
     if action == 'doDoYouSeeMe':
-        detected, status = getIsFaceDetected()
-        if detected:
-            say('Yes I see you.', 1.5)
-        else:
-            say('No.', 1)
+        doDoYouSeeMe()
         return
 
     if action == 'doWhereAmI':
+        doWhereAmI()
+        return
+
+    if action == 'doStartContinuousVisualStatusUpdate':
+        doContinuousVisualStatusUpdate()
+        return
+
+    if action == 'doForward':
+        doMoveForward()
+        return
+    if action == 'doBackward':
+        doMoveBackward()
+        return
+    if action == 'doLeft':
+        doMoveLeft()
+        return
+    if action == 'doRight':
+        doMoveRight()
+        return
+
+    if action == 'doStartComeHere':
+        doStartComeHere()
+        return
+
+    if action == 'doStop':
+        doStop()
+        return
+
+    say('Do not know action ' + action + '.', 1.5)
+
+##################################################################
+def sayLatestVisualStatus():
+    doWhereAmI()
+
+##################################################################
+def doContinuousVisualStatusUpdate():
+
+    global startContinuousVisualStatusUpdate 
+    startContinuousVisualStatusUpdate = True
+
+##################################################################
+def doMoveForward():
+    doMove('forward')
+##################################################################
+def doMoveBackward():
+    doMove('backward')
+##################################################################
+def doMoveLeft():
+    doMove('left')
+##################################################################
+def doMoveRight():
+    doMove('right')
+
+##################################################################
+def doMove(direction):
+
+    possibleJsonResp = sendPostMessage('/vision/command/'+direction+'?from=voice.control')
+    if 'ok' not in possibleJsonResp:
+        say('Error attempting to move.', 2)
+        return
+
+    waitForVisionRobotControlToBeReadyForNextCommand()
+
+    getUpdateLatestStatus = True
+    status = getRobotStatus(getUpdateLatestStatus)
+
+    print('')
+    print('')
+    print('')
+    print(status)
+    print('')
+    print('')
+    print('')
+
+    say('Moved ' + direction + '.', 1.5)
+
+
+##################################################################
+def doStartComeHere():
+    possibleJsonResp = sendPostMessage('/vision/command/come.here?from=voice.control')
+    if 'ok' not in possibleJsonResp:
+        say('Error attempting to go there.', 2)
+        return
+
+##################################################################
+def doStop():
+
+    global startContinuousVisualStatusUpdate 
+    startContinuousVisualStatusUpdate = False
+
+    possibleJsonResp = sendPostMessage('/vision/command/stop?from=voice.control')
+
+    count = 0
+    while 'ok' not in possibleJsonResp and count < 4:
+        say('Error attempting to stop.', 2)
+        possibleJsonResp = sendPostMessage('/vision/command/stop?from=voice.control')
+        return
+
+    if 'ok' not in possibleJsonResp:
+        saveJsonAndCleanUp()
+    
+
+##################################################################
+def doWhereAmI():
+    detected, status = getIsFaceDetected()
+    if not detected:
         detected, status = getIsFaceDetected()
         if not detected:
             detected, status = getIsFaceDetected()
             if not detected:
-                detected, status = getIsFaceDetected()
-                if not detected:
-                    say('But I dont see you.', 1.5)
-                    return
+                say('But I dont see you.', 1.5)
+                return
 
-        print('')
-        print(status)
-        print('')
-        visual = status['visual']
-        faceWidth = visual['faceWidth']
-        if visual['faceCentered'] == True:
-            say('You are centered, ' + faceWidth, 2)
-        elif visual['faceIsToTheLeft'] == True:
-            say('You are to my left, ' + faceWidth, 2)
-        elif visual['faceIsToTheRight'] == True:
-            say('You are to my right, ' + faceWidth, 2)
+    print('')
+    print(status)
+    print('')
+    visual = status['visual']
+    faceWidth = visual['faceWidth']
+    if visual['faceCentered'] == True:
+        say('You are centered ' + faceWidth, 2.5)
+    elif visual['faceIsToTheLeft'] == True:
+        say('You are to my left ' + faceWidth, 2.5)
+    elif visual['faceIsToTheRight'] == True:
+        say('You are to my right ' + faceWidth, 2.5)
+    else:
+        say('I am not sure.', 1.5)
+
+##################################################################
+def doInitRobotDrive():
+    global robotIsReadyToDrive
+    if not robotIsReadyToDrive:
+        robotIsReadyToDrive = initRobotDrive()
+        if robotIsReadyToDrive:
+            say('Robot is ready.', 1.5)
         else:
-            say('I am not sure.', 1.5)
-        return
+            say('Robot Init Error', 1.5)
 
-    if action == 'doForward':
-        sendRobotDriveCommand('forward', fwdBakSpeed)
-        #time.sleep(1.2)
-        #sendRobotDriveCommand('forward')
-        #time.sleep(1.2)
-        #sendRobotDriveCommand('forward')
-        say('Did ' + successText + '.', 2)
-        return
-    if action == 'doBackward':
-        sendRobotDriveCommand('backward', fwdBakSpeed)
-        #time.sleep(1.2)
-        #sendRobotDriveCommand('forward')
-        #time.sleep(1.2)
-        #sendRobotDriveCommand('forward')
-        say('Did ' + successText + '.', 2)
-        return
-    if action == 'doLeft':
-        sendRobotDriveCommand('left', leftSpeed)
-        #time.sleep(1.2)
-        #sendRobotDriveCommand('forward')
-        #time.sleep(1.2)
-        #sendRobotDriveCommand('forward')
-        say('Did ' + successText + '.', 2)
-        return
-    if action == 'doRight':
-        sendRobotDriveCommand('right', rightSpeed)
-        #time.sleep(1.2)
-        #sendRobotDriveCommand('forward')
-        #time.sleep(1.2)
-        #sendRobotDriveCommand('forward')
-        say('Did ' + successText + '.', 2)
-        return
-
-
-
-
-
-    say('Do not know action ' + action + '.', 1.5)
+##################################################################
+def doDoYouSeeMe():
+    detected, status = getIsFaceDetected()
+    if detected:
+        say('Yes I see you.', 1.5)
+    else:
+        say('No.', 1)
 
 ##################################################################
 def doGoodBye(phraseText):
@@ -940,6 +1034,8 @@ def checkIfVisionRobotControlIsReadyForNextCommand():
     print('')
 
     possibleJsonResp = sendGetMessage('/vision/ready?from=voice.control')
+    if possibleJsonResp == 'Refused':
+        return False
     try:
         response = json.loads(possibleJsonResp)
         print(response)
@@ -1197,16 +1293,6 @@ def initRobotDrive():
 
     return False
 
-##################################################################
-def sendRobotDriveCommand(direction, mySpeed):
-    global robotIsReadyToDrive
-    if not robotIsReadyToDrive:
-        robotIsReadyToDrive = initRobotDrive()
-    if robotIsReadyToDrive:
-        respText = sendPostMessage('/arduino/api/' + direction + '/' + str(mySpeed))
-        if not 'Cmd Sent To Arduino' in respText:
-            print(respText)
-            say(respText,2)
 
 ##################################################################
 def sendRobotNodeJsCommand(command, resultExpected, sayOnGoodResult):
@@ -1223,34 +1309,6 @@ def sendRobotNodeJsCommand(command, resultExpected, sayOnGoodResult):
 
 
 
-
-##################################################################
-def actOnKnownPhrases(phraseText, metaDataForLatestRecordedPhrase):
-
-    try:
-        conversation = conversationMap[phraseText]
-    except (KeyError):
-        say('Do not know conversation for ' + phraseText, 2.5)
-        return
-    except:
-        track = traceback.format_exc()
-        print(track)
-        return
-
-    if phraseText == 'noise':
-        return
-
-    if conversation['firstresp'] != 'none' and conversation['firstresp'] != '':
-        say(conversation['firstresp'], int(conversation['delay']))
-        if conversation['action'] == 'none' or conversation['action'] == '':
-            return
-
-    if conversation['action'] != 'none' and conversation['action'] != '':
-        doAction(conversation['action'])
-        return
-
-
-    say('Do not know what to do with ' + phraseText, 2)
 
 ##################################################################
 if __name__ == '__main__':
@@ -1315,6 +1373,8 @@ while not quitProgram:
             newPhraseAddedThisTime = True
             continue
 
+        saveNewNoiseSample = False
+
         if len(phrasesArray) > 0:
 
 
@@ -1326,7 +1386,7 @@ while not quitProgram:
             except:
                 verify = None
             print('best Phrase Match: ', bestPhrase, '  numMatches: ', numMatches)
-            if (verify == 'assume' and numMatches > 1) or (difference < 150 and numMatches > 6) or (difference < 250 and numMatches > 8):
+            if (verify == 'assume' and numMatches > 1) or (difference < 200 and numMatches > 10):
                 print(f.renderText(bestPhraseMatch['phrase']))
                 needPhrase = bestPhraseMatch['phrase']
                 actOnKnownPhrases(needPhrase, metaDataForLatestRecordedPhrase)
@@ -1345,6 +1405,8 @@ while not quitProgram:
                 elif not tryAgainForYesNo and not isThisCorrect:
                     say('Enter phrase.', 1)
                     needPhrase = input('Need to assign new phrase to this latest recording:')
+                    if needPhrase == 'noise':
+                        saveNewNoiseSample = True
                 elif tryAgainForYesNo:
                     isThisCorrect, tryAgainForYesNo, gotClearYesOrNo = getIsThisCorrectUserInput(justGetYesOrNoResponse, True)
                     if not tryAgainForYesNo and isThisCorrect:
@@ -1353,6 +1415,8 @@ while not quitProgram:
                     elif not tryAgainForYesNo and gotClearYesOrNo and not isThisCorrect:
                         say('Enter phrase.', 1)
                         needPhrase = input('Need to assign new phrase to this latest recording:')
+                        if needPhrase == 'noise':
+                            saveNewNoiseSample = True
                     else:
                         say('Sorry.', 1)
                         continue
@@ -1361,9 +1425,13 @@ while not quitProgram:
                     continue
         else:
             needPhrase = input('Need to assign new phrase to this latest recording:')
+            if needPhrase == 'noise':
+                saveNewNoiseSample = True
 
         if len(needPhrase) > 0:
             metaDataForLatestRecordedPhrase['phrase'] = needPhrase
+            if needPhrase == 'noise' and not saveNewNoiseSample:
+                continue
             print('')
             print('Saving : ', metaDataForLatestRecordedPhrase['phrase'])
             print('')
