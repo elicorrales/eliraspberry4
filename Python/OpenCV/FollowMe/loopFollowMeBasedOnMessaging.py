@@ -40,6 +40,8 @@ maxDist=args.maxDist
 limitBuffer=args.limitBuffer
 speak=args.speak
 
+deltaLeftRightLimit = 90
+
 robotDriveUrl = 'http://10.0.0.58:8084'
 robotMessagingUrl = 'http://10.0.0.58:8085/messaging/api'
 robotIsReadyToDrive = False
@@ -68,6 +70,7 @@ faceJustFine   = False
 faceIsToTheLeft = False
 faceIsToTheRight = False
 faceWidth = 0
+comeHere = False
 
 lastTimeMoved = time.time()
 
@@ -458,11 +461,19 @@ def sendRobotDriveCommand(direction, mySpeed):
 
 ##################################################################
 def moveLeftOrRightToCenterOnFace(deltaLastTimeMoved, deltaLeftRight, leftEdge, rightEdge):
+
+    print('')
+    print('')
+    print('')
+    print('moveLeftOrRightToCenterOfFace()');
+    print('')
+    print('')
+
     global lastTimeMoved
     global faceMovedRight
     global faceMovedLeft
 
-    if deltaLastTimeMoved > loopDelay and deltaLeftRight > 45:
+    if deltaLastTimeMoved > loopDelay and deltaLeftRight > deltaLeftRightLimit:
 
         if leftEdge > rightEdge:
             if not faceMovedRight:
@@ -487,7 +498,7 @@ def getFaceIsLeftOrRightOrCentered(deltaLeftRight):
     global faceIsToTheRight
 
     # face in more or less in center
-    if deltaLeftRight <= 45:
+    if deltaLeftRight <= deltaLeftRightLimit:
 
         faceCentered = True
         faceMovedLeft = False
@@ -522,6 +533,14 @@ def getIsFaceTooCloseOrTooFarOrJustFine():
 
 ##################################################################
 def moveForwardOrBackForCorrectDistanceAway():
+
+    print('')
+    print('')
+    print('')
+    print('moveForwardOrBackForCorrectDistanceAway()');
+    print('')
+    print('')
+
     global lastTimeMoved
     global faceJustFine 
     global faceIsTooClose
@@ -560,6 +579,8 @@ def moveForwardOrBackForCorrectDistanceAway():
 ##################################################################
 # the main messaging command router to related function
 def getVisionMessagingCommandIfAnyAndExecute():
+
+    global comeHere
 
     possibleJsonResp = sendGetMessage('/vision/command?from=vision')
 
@@ -621,6 +642,14 @@ def getVisionMessagingCommandIfAnyAndExecute():
             elif command == 'right':
                 sendRobotDriveCommand('right',fwdBakSpeed)
                 tellMessagingThatVisionControlIsReadyForNewCommand()
+            elif command == 'come.here':
+                comeHere = True
+                tellMessagingThatVisionControlIsReadyForNewCommand()
+            elif command == 'stop':
+                comeHere = False
+                tellMessagingThatVisionControlIsReadyForNewCommand()
+
+
 
 
             else:
@@ -762,10 +791,12 @@ if cap.isOpened:
 
                 getIsFaceTooCloseOrTooFarOrJustFine()
 
-                #moveForwardOrBackForCorrectDistanceAway()
-
- 
-                #moveLeftOrRightToCenterOnFace(deltaLastTimeMoved, deltaLeftRight, leftEdge, rightEdge)
+                if comeHere:
+                    if not robotIsReadyToDrive:
+                        robotIsReadyToDrive = initRobotDrive()
+                    if robotIsReadyToDrive:
+                        moveForwardOrBackForCorrectDistanceAway()
+                        moveLeftOrRightToCenterOnFace(deltaLastTimeMoved, deltaLeftRight, leftEdge, rightEdge)
  
 else:
     print("Failed to open capture device")
