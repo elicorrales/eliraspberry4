@@ -23,5 +23,6 @@
     "left":{"firstresp":"Very well.", "delay":1.2, "action":"doLeft"},
     "right":{"firstresp":"Very well.", "delay":1.2, "action":"doRight"},
     "stop":{"firstresp":"Very well.", "delay":1.2, "action":"doStop"},
-    "come here":{"firstresp":"Very well.", "delay":1.2, "action":"doStartComeHere"}
+    "come here":{"firstresp":"Very well.", "delay":1.2, "action":"doStartComeHere"},
+    "do you hear me?":{"firstresp":"Yes I hear you.", "delay":1.5, "verify":"Do I hear you?","action":"none"}
 }
