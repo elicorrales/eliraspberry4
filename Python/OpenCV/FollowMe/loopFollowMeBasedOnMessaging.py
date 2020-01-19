@@ -40,7 +40,7 @@ maxDist=args.maxDist
 limitBuffer=args.limitBuffer
 speak=args.speak
 
-deltaLeftRightLimit = 90
+deltaLeftRightLimit = 150 
 
 robotDriveUrl = 'http://10.0.0.58:8084'
 robotMessagingUrl = 'http://10.0.0.58:8085/messaging/api'
