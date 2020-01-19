@@ -125,7 +125,7 @@ def getUserVoiceInputMetaData():
         return None
 
 ##################################################################
-def getIsThisCorrectUserInput(justGetYesOrNoResponse, triedAgainForYesNo):
+def getIsThisCorrectUserInput(justGetYesOrNoResponse, triedAgainForYesNo, isPrevYesOrNo):
 
     global newYesNoQuitAddedThisTime
 
@@ -146,7 +146,7 @@ def getIsThisCorrectUserInput(justGetYesOrNoResponse, triedAgainForYesNo):
             difference, numMatches, bestMatch = findBestMatch(metaData, yesNoQuitArray)
             print('difference: ', difference, ', numMatches: ', numMatches)
 
-        if (difference < 300 and numMatches > 10) or (difference < 400 and numMatches > 12) or (difference < 450 and numMatches > 13) or (difference < 500 and numMatches > 15):
+        if (isPrevYesOrNo == bestMatch['phrase'] and difference < 150) or (difference < 300 and numMatches > 10) or (difference < 400 and numMatches > 12) or (difference < 450 and numMatches > 13) or (difference < 500 and numMatches > 15):
 
             newYesNoQuitAddedThisTime = True
             print('Found good match...')
@@ -268,16 +268,16 @@ def saveJsonAndCleanUp():
     print('')
     print('')
 
-    registerWithMessagingThatThisProgramIsShuttingDown()
+    callSaveJsonAndCleanUpOnFailure=False
+    registerWithMessagingThatThisProgramIsShuttingDown(callSaveJsonAndCleanUpOnFailure)
 
-    status = tellRobotVisionDriveControlToQuit()
+    status = tellRobotVisionDriveControlToQuit(callSaveJsonAndCleanUpOnFailure)
 
     print('')
     print('')
     print('')
     print('')
-    print('saveJsonAndCleanUp() status returned from telling robot to quit:')
-    print(status)
+    print('saveJsonAndCleanUp() status returned from telling robot to quit:', status)
     saveJsonData()
 
     count = 0
@@ -288,7 +288,7 @@ def saveJsonAndCleanUp():
         print('')
         print('saveJsonAndCleanUp() INSIDE LOOP , status returned from telling robot to quit:')
         print(status)
-        status = tellRobotVisionDriveControlToQuit()
+        status = tellRobotVisionDriveControlToQuit(callSaveJsonAndCleanUpOnFailure)
         count += 1
 
     cleanUp()
@@ -438,7 +438,7 @@ def findBestMatch(latestPhraseData, phrasesArray):
             leastDiff = difference
             bestMatchIndex = i
 
-            if previousPhrase == '' or phraseData['phrase'] == previousPhrase:
+            if phraseData['phrase'] == previousPhrase:
                 numMatches += 1
             else:
                 numMatches = 0
@@ -878,8 +878,9 @@ def wallaceIndicatesReadiness():
 
     say('Wallace is ready.  Do you need help?',0.5)
     justGetYesOrNoResponse = True
-
-    doHelp, tryAgainForYesNo, gotClearYesOrNo = getIsThisCorrectUserInput(justGetYesOrNoResponse, False)
+    triedAgainForYesOrNo = False
+    prevYesOrNo = ''
+    doHelp, tryAgainForYesNo, gotClearYesOrNo = getIsThisCorrectUserInput(justGetYesOrNoResponse, triedAgainForYesOrNo, prevYesOrNo)
 
     if not tryAgainForYesNo and gotClearYesOrNo and not doHelp:
         say('Very well, good show. Ready.',2);
@@ -890,8 +891,12 @@ def wallaceIndicatesReadiness():
         return
 
     if tryAgainForYesNo:
-
-        doHelp, tryAgainForYesNo, gotClearYesOrNo = getIsThisCorrectUserInput(justGetYesOrNoResponse, True)
+        if doHelp:
+            prevYesOrNo = 'yes'
+        else:
+            prevYesOrNo = 'no'
+        triedAgainForYesOrNo = True
+        doHelp, tryAgainForYesNo, gotClearYesOrNo = getIsThisCorrectUserInput(justGetYesOrNoResponse, triedAgainForYesOrNo, prevYesOrNo)
 
         if not tryAgainForYesNo and gotClearYesOrNo and not doHelp:
             say('Very well, good show. Ready.',2);
@@ -909,7 +914,7 @@ def wallaceIndicatesReadiness():
 
 
 ##################################################################
-def sendGetMessage(completeUriString):
+def sendGetMessage(completeUriString, callSaveJsonAndCleanUpOnFailure=True):
 
     global robotDriveServerConnectionRefusedNumberOfTimes
 
@@ -923,24 +928,25 @@ def sendGetMessage(completeUriString):
     except (requests.exceptions.ConnectionError, ConnectionRefusedError):
         time.sleep(0.20)
         robotDriveServerConnectionRefusedNumberOfTimes += 1;
-        if robotDriveServerConnectionRefusedNumberOfTimes > 3:
+        if callSaveJsonAndCleanUpOnFailure and robotDriveServerConnectionRefusedNumberOfTimes > 3:
             saveJsonAndCleanUp()
         return 'Refused'
     except:
         track = traceback.format_exc()
         print(track)
         say('Other Communication Error', 0)
-        saveJsonAndCleanUp()
+        if callSaveJsonAndCleanUpOnFailure:
+            saveJsonAndCleanUp()
 
 
 ##################################################################
-def waitForVisionRobotControlToBeReadyForNextCommand():
+def waitForVisionRobotControlToBeReadyForNextCommand(callSaveJsonAndCleanUpOnFailure=True):
 
     isReady = False
     count = 0
     while not isReady and count < 20:
         count += 1
-        isReady = checkIfVisionRobotControlIsReadyForNextCommand()
+        isReady = checkIfVisionRobotControlIsReadyForNextCommand(callSaveJsonAndCleanUpOnFailure)
         if isReady:
             break
         print('')
@@ -959,11 +965,11 @@ def waitForVisionRobotControlToBeReadyForNextCommand():
     return isReady
 
 ##################################################################
-def sendPostMessage(completeUriString):
+def sendPostMessage(completeUriString, callSaveJsonAndCleanUpOnFailure=True):
 
     global robotDriveServerConnectionRefusedNumberOfTimes
 
-    waitForVisionRobotControlToBeReadyForNextCommand()
+    waitForVisionRobotControlToBeReadyForNextCommand(callSaveJsonAndCleanUpOnFailure)
 
     try:
         print(robotMessagingUrl + completeUriString)
@@ -976,18 +982,19 @@ def sendPostMessage(completeUriString):
     except (requests.exceptions.ConnectionError, ConnectionRefusedError):
         time.sleep(0.2)
         robotDriveServerConnectionRefusedNumberOfTimes += 1;
-        if robotDriveServerConnectionRefusedNumberOfTimes > 3:
+        if callSaveJsonAndCleanUpOnFailure and robotDriveServerConnectionRefusedNumberOfTimes > 3:
             saveJsonAndCleanUp()
         return 'Refused'
     except:
         track = traceback.format_exc()
         print(track)
         say('Other Communication Error', 0)
-        saveJsonAndCleanUp()
+        if callSaveJsonAndCleanUpOnFailure:
+            saveJsonAndCleanUp()
 
 
 ##################################################################
-def sendDeleteMessage(completeUriString):
+def sendDeleteMessage(completeUriString, callSaveJsonAndCleanUpOnFailure=True):
 
     global robotDriveServerConnectionRefusedNumberOfTimes
 
@@ -1002,38 +1009,39 @@ def sendDeleteMessage(completeUriString):
     except (requests.exceptions.ConnectionError, ConnectionRefusedError):
         time.sleep(0.2)
         robotDriveServerConnectionRefusedNumberOfTimes += 1;
-        if robotDriveServerConnectionRefusedNumberOfTimes > 3:
+        if callSaveJsonAndCleanUpOnFailure and robotDriveServerConnectionRefusedNumberOfTimes > 3:
             saveJsonAndCleanUp()
         return 'Refused'
     except:
         track = traceback.format_exc()
         print(track)
         say('Other Communication Error', 0)
-        saveJsonAndCleanUp()
+        if callSaveJsonAndCleanUpOnFailure:
+            saveJsonAndCleanUp()
 
 
 ##################################################################
-def registerWithMessagingThatThisProgramIsShuttingDown():
+def registerWithMessagingThatThisProgramIsShuttingDown(callSaveJsonAndCleanUpOnFailure=True):
 
     print('')
     print('registerWithMessagingThatThisProgramIsShuttingDown()')
     print('')
 
-    possibleJsonResp = sendDeleteMessage('/voice/status/quit?from=voice.control')
+    possibleJsonResp = sendDeleteMessage('/voice/status/quit?from=voice.control', callSaveJsonAndCleanUpOnFailure)
     if 'ok' not in possibleJsonResp:
         possibleJsonResp = sendDeleteMessage('/voice/status/quit?from=voice.control')
         if 'ok' not in possibleJsonResp:
-            print('Unable to register with messaging that we are shutting down.')
+            print('Unable to register with messaging that we are shutting down.', possibleJsonResp)
 
 
 ##################################################################
-def checkIfVisionRobotControlIsReadyForNextCommand():
+def checkIfVisionRobotControlIsReadyForNextCommand(callSaveJsonAndCleanUpOnFailure=True):
 
     print('')
     print('checkIfVisionRobotControlIsReadyForNextCommand()...')
     print('')
 
-    possibleJsonResp = sendGetMessage('/vision/ready?from=voice.control')
+    possibleJsonResp = sendGetMessage('/vision/ready?from=voice.control', callSaveJsonAndCleanUpOnFailure)
     if possibleJsonResp == 'Refused':
         return False
     try:
@@ -1049,14 +1057,16 @@ def checkIfVisionRobotControlIsReadyForNextCommand():
             print('')
             print(possibleJsonResp)
             print('')
-            saveJsonAndCleanUp()
+            if callSaveJsonAndCleanUpOnFailure:
+                saveJsonAndCleanUp()
     except:
         track = traceback.format_exc()
         print(track)
         print('')
         print(possibleJsonResp)
         print('')
-        saveJsonAndCleanUp()
+        if callSaveJsonAndCleanUpOnFailure:
+            saveJsonAndCleanUp()
 
 ##################################################################
 def clearMessagingCommand():
@@ -1081,7 +1091,7 @@ def clearMessagingCommand():
         saveJsonAndCleanUp()
 
 ##################################################################
-def tellRobotVisionDriveControlToQuit():
+def tellRobotVisionDriveControlToQuit(callSaveJsonAndCleanUpOnFailure=True):
 
     print('')
     print('')
@@ -1089,7 +1099,7 @@ def tellRobotVisionDriveControlToQuit():
     print('tellRobotVisionDriveControlToQuit() : send post command requesting latest status...')
     print('')
 
-    possibleJsonResp = sendPostMessage('/vision/command/quit?from=voice.control')
+    possibleJsonResp = sendPostMessage('/vision/command/quit?from=voice.control', callSaveJsonAndCleanUpOnFailure)
     if 'Refused' in possibleJsonResp:
         status = 'Refused'
         return status
@@ -1113,7 +1123,7 @@ def tellRobotVisionDriveControlToQuit():
 
     time.sleep(2)
 
-    possibleJsonResp = sendGetMessage('/vision/status?from=voice.control')
+    possibleJsonResp = sendGetMessage('/vision/status?from=voice.control', callSaveJsonAndCleanUpOnFailure)
     if 'Refused' in possibleJsonResp:
         status = 'Refused'
         return status
@@ -1318,7 +1328,10 @@ if __name__ == '__main__':
 
 if not findNoiseLevel:
     loadJsonDataFromFiles()
-    wallaceIndicatesReadiness()
+    if continuousPhrase == '':
+        wallaceIndicatesReadiness()
+    else:
+        say('Wallace is ready.', 2)
 
 while not quitProgram:
 
@@ -1371,6 +1384,11 @@ while not quitProgram:
             metaDataForLatestRecordedPhrase['phrase'] = continuousPhrase
             phrasesArray.append(metaDataForLatestRecordedPhrase)
             newPhraseAddedThisTime = True
+            print('')
+            print('')
+            print(len(phrasesArray))
+            print('')
+            print('')
             continue
 
         saveNewNoiseSample = False
@@ -1386,7 +1404,7 @@ while not quitProgram:
             except:
                 verify = None
             print('best Phrase Match: ', bestPhrase, '  numMatches: ', numMatches)
-            if (verify == 'assume' and numMatches > 1) or (difference < 200 and numMatches > 10):
+            if (verify == 'assume' and numMatches > 0) or (difference < 200 and numMatches > 10):
                 print(f.renderText(bestPhraseMatch['phrase']))
                 needPhrase = bestPhraseMatch['phrase']
                 actOnKnownPhrases(needPhrase, metaDataForLatestRecordedPhrase)
@@ -1398,7 +1416,9 @@ while not quitProgram:
                 else:
                     say('Did you say ' + bestPhrase + '?"', 1.5)
                 justGetYesOrNoResponse = False
-                isThisCorrect, tryAgainForYesNo, gotClearYesOrNo = getIsThisCorrectUserInput(justGetYesOrNoResponse, False)
+                triedAgainForYesOrNo = False
+                prevYesOrNo = ''
+                isThisCorrect, tryAgainForYesNo, gotClearYesOrNo = getIsThisCorrectUserInput(justGetYesOrNoResponse, triedAgainForYesOrNo, prevYesOrNo)
                 if not tryAgainForYesNo and isThisCorrect:
                     needPhrase = bestPhraseMatch['phrase']
                     actOnKnownPhrases(needPhrase, metaDataForLatestRecordedPhrase)
@@ -1408,7 +1428,12 @@ while not quitProgram:
                     if needPhrase == 'noise':
                         saveNewNoiseSample = True
                 elif tryAgainForYesNo:
-                    isThisCorrect, tryAgainForYesNo, gotClearYesOrNo = getIsThisCorrectUserInput(justGetYesOrNoResponse, True)
+                    if isThisCorrect:
+                        prevYesOrNo = 'yes'
+                    else:
+                        prevYesOrNo = 'no'
+                    triedAgainForYesOrNo = True
+                    isThisCorrect, tryAgainForYesNo, gotClearYesOrNo = getIsThisCorrectUserInput(justGetYesOrNoResponse, triedAgainForYesOrNo, prevYesOrNo)
                     if not tryAgainForYesNo and isThisCorrect:
                         needPhrase = bestPhrase
                         actOnKnownPhrases(needPhrase, metaDataForLatestRecordedPhrase)

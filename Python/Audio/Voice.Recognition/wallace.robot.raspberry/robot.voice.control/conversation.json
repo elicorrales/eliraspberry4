@@ -5,7 +5,7 @@
     "thank you wallace":{"firstresp":"You are welcome.", "delay":1.5, "action":"none"},
     "this is a test":{"firstresp":"Very well.", "delay":1.5, "action":"none"},
     "quit":{"firstresp":"good-bye", "delay":0, "action":"doGoodBye"},
-    "good-bye wallace":{"firstresp":"good-bye", "delay":0, "action":"doGoodBye"},
+    "good-bye wallace":{"firstresp":"good-bye", "delay":0, "verify":"Are you saying good-bye?","action":"doGoodBye"},
     "that is all":{"firstresp":"good-bye", "delay":0, "action":"doGoodBye"},
     "help please":{"firstresp":"", "delay":0, "action":"doOfferHelp"},
     "list please":{"firstresp":"", "delay":0, "action":"doListPhrasesTrained"},
