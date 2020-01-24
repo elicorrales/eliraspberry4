@@ -9,9 +9,10 @@ const messagingServerPort = 8085;
 
 //const raspberry2arduinoBaud = 9600;
 //const raspberry2arduinoBaud = 19200;
+const raspberry2arduinoBaud = 38400;
 //const raspberry2arduinoBaud = 57600;
 //const raspberry2arduinoBaud = 74880;
-const raspberry2arduinoBaud = 115200;
+//const raspberry2arduinoBaud = 115200;
 //const raspberry2arduinoBaud = 230400;
 //const raspberry2arduinoBaud = 250000;
 //const raspberry2arduinoBaud = 500000;
