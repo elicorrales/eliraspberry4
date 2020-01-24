@@ -1,0 +1,3 @@
+ pythonOpenCV loopFollowMeBasedOnMessaging.py --width=640 --height=480 --FPS=20 --limit-buffer --http-timeout=1 --lSpeed=40 --rSpeed=38 --fbSpeed=28 --loopDelay=0.08 --min-dist=150 --max-dist=135
+
+pythonOpenCV loopFollowMeBasedOnMessaging.py --width=640 --height=480 --FPS=20 --limit-buffer --http-timeout=1 --lSpeed=40 --rSpeed=38 --fbSpeed=40 --loopDelay=0.08 --min-dist=155 --max-dist=125
