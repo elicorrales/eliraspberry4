@@ -1,7 +1,7 @@
 import sys
 import argparse
 import os
-import pyttsx3
+#import pyttsx3
 import numpy as np
 import cv2
 import time
@@ -42,8 +42,8 @@ speak=args.speak
 
 deltaLeftRightLimit = 150 
 
-robotDriveUrl = 'http://10.0.0.58:8084'
-robotMessagingUrl = 'http://10.0.0.58:8085/messaging/api'
+robotDriveUrl = 'http://localhost:8084'
+robotMessagingUrl = 'http://localhost:8085/messaging/api'
 robotIsReadyToDrive = False
 robotDriveServerConnectionRefusedNumberOfTimes = 0;
 messagingServerConnectionRefusedNumberOfTimes = 0;
@@ -74,7 +74,7 @@ comeHere = False
 
 lastTimeMoved = time.time()
 
-tts = pyttsx3.init()
+#tts = pyttsx3.init()
 
 ##################################################################
 def initCamera():
@@ -109,9 +109,9 @@ def signalHandler(signalReceived, frame):
 
 ##################################################################
 def say(phrase):
-    if speak:
-        tts.say(phrase)
-        tts.runAndWait()
+    #if speak:
+        #tts.say(phrase)
+        #tts.runAndWait()
     print(phrase)
 
 ##################################################################
