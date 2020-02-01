@@ -305,7 +305,7 @@ const respondWithHistoryHandler = (request, response) => {
 
 
 
-const processDriveCommand = (ackWaitTime,cmdNum, commandStr, myRand, p1) => {
+const processDriveCommand = (ackWaitTime,cmdNum, commandStr, myRand, p1, p2) => {
     //console.log('ELIELI: drCmdAckRcvd:',driveCmdAckRcvd,' dir:',dir,' lastDrivCmd:',lastDriveCmd,' ackNum:',ackNum,' lastAck:',lastAckNum,' time:',ackWaitTime);
     if ((driveCmdAckRcvd && dir === lastDriveCmd && ackNum == lastAckNum) || ackWaitTime > maxTimeToWaitForAck) {
         //console.log('ELIELI clear wait');
@@ -323,17 +323,16 @@ const processDriveCommand = (ackWaitTime,cmdNum, commandStr, myRand, p1) => {
 
     ////////// we increment the drive command number if it is part of a stream of drive commands,
     ////////// other wise if some time elapsed, and it is a new stream, we reset the drive command number.
-    let p2 = 0;
+    let p3 = 0;
     if (ackWaitTime < 1000 && ackNum !== '') {
-        p2 = parseInt(ackNum) + 1;    
+        p3 = parseInt(ackNum) + 1;    
     }
     lastDriveCmd = commandStr;
-    lastAckNum = p2;
     waitForDriveCmdAck = true;
     driveCmdAckRcvd = false;
-    let commandStringToSend = '6 ' + cmdNum + ' ' + myRand + ' ' 
-                        + (parseInt(cmdNum) + parseInt(myRand) + parseInt(p1) + parseInt(p2) + 6) 
-                        + ' ' + p1 + ' ' + p2;
+    let commandStringToSend = '7 ' + cmdNum + ' ' + myRand + ' ' 
+                        + (parseInt(cmdNum) + parseInt(myRand) + parseInt(p1) + parseInt(p2) + parseInt(p3) + 7) 
+                        + ' ' + p1 + ' ' + p2 + ' ' + p3;
     return commandStringToSend;
 }
 

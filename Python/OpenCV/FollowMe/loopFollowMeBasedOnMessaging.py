@@ -40,7 +40,7 @@ maxDist=args.maxDist
 limitBuffer=args.limitBuffer
 speak=args.speak
 
-deltaLeftRightLimit = 150 
+deltaLeftRightLimit = 145 
 
 robotDriveUrl = 'http://localhost:8084'
 robotMessagingUrl = 'http://localhost:8085/messaging/api'
@@ -448,73 +448,70 @@ def initRobotDrive():
     return False
 
 ##################################################################
-def sendRobotDriveCommand(direction, mySpeed):
+def sendRobotDriveCommand(direction, leftSpeed, rightSpeed):
     global robotIsReadyToDrive
     if not robotIsReadyToDrive:
         robotIsReadyToDrive = initRobotDrive()
     if robotIsReadyToDrive:
-        respText = sendRobotUrl('/arduino/api/' + direction + '/' + str(mySpeed))
+        respText = sendRobotUrl('/arduino/api/' + direction + '/' + str(leftSpeed) + '/' + str(rightSpeed))
         if not 'Cmd Sent To Arduino' in respText:
             print(respText)
             say(respText)
 
 
 ##################################################################
-def moveLeftOrRightToCenterOnFace(deltaLastTimeMoved, deltaLeftRight, leftEdge, rightEdge):
+def moveLeftOrRightToCenterOnFace(deltaLastTimeMoved):
 
-    print('')
-    print('')
-    print('')
-    print('moveLeftOrRightToCenterOfFace()');
-    print('')
-    print('')
+    #print('')
+    #print('')
+    #print('')
+    #print('moveLeftOrRightToCenterOfFace()');
+    #print('')
+    #print('')
 
     global lastTimeMoved
     global faceMovedRight
     global faceMovedLeft
 
-    if deltaLastTimeMoved > loopDelay and deltaLeftRight > deltaLeftRightLimit:
+    if deltaLastTimeMoved > loopDelay:
 
-        if leftEdge > rightEdge:
-            if not faceMovedRight:
-                say('right')
-                faceMovedRight = True
-            sendRobotDriveCommand('right',rightSpeed)
-        else:
-            if not faceMovedLeft:
-                say('left')
-                faceMovedLeft = True
-            sendRobotDriveCommand('left',leftSpeed)
+        if faceIsToTheLeft:
+            faceMovedRight = True
+            sendRobotDriveCommand('right',leftSpeed, rightSpeed)
+        elif faceIsToTheRight:
+            faceMovedLeft = True
+            sendRobotDriveCommand('left',leftSpeed, rightSpeed)
 
         lastTimeMoved = time.time()
 
+    if faceMovedRight or faceMovedLeft:
+        return True
+    else:
+        return False
+
 ##################################################################
-def getFaceIsLeftOrRightOrCentered(deltaLeftRight):
+def getIsFaceLeftOrRightOrCentered(centerLine, leftEdge, rightEdge):
     global faceCentered
-    global faceMovedLeft
-    global faceMovedRight
     global faceIsJustRight
     global faceIsToTheLeft
     global faceIsToTheRight
 
-    # face in more or less in center
-    if deltaLeftRight <= deltaLeftRightLimit:
-
-        faceCentered = True
-        faceMovedLeft = False
-        faceMovedRight = False
-
-    #face is to one side or another
-    else:
+    if rightEdge > centerLine + deltaLeftRightLimit:
         faceCentered = False
-        faceIsJustRight = False
+        faceIsToTheRight = False
+        faceIsToTheLeft = True
+ 
+    elif leftEdge < centerLine - deltaLeftRightLimit:
+        faceCentered = False
+        faceIsToTheLeft = False
+        faceIsToTheRight = True
 
-        if leftEdge > rightEdge:
-            faceIsToTheRight = True
-            faceIsToTheLeft = False
-        else:
-            faceIsToTheLeft = True
-            faceIsToTheRight = False
+    else:
+        faceCentered = True
+        faceIsToTheLeft = False
+        faceIsToTheRight = False
+
+
 
 ##################################################################
 def getIsFaceTooCloseOrTooFarOrJustFine():
@@ -532,14 +529,14 @@ def getIsFaceTooCloseOrTooFarOrJustFine():
 
 
 ##################################################################
-def moveForwardOrBackForCorrectDistanceAway():
+def moveForwardOrBackForCorrectDistanceAway(deltaLastTimeMoved):
 
-    print('')
-    print('')
-    print('')
-    print('moveForwardOrBackForCorrectDistanceAway()');
-    print('')
-    print('')
+    #print('')
+    #print('')
+    #print('')
+    #print('moveForwardOrBackForCorrectDistanceAway()');
+    #print('')
+    #print('')
 
     global lastTimeMoved
     global faceJustFine 
@@ -553,14 +550,14 @@ def moveForwardOrBackForCorrectDistanceAway():
         if not faceIsTooClose:
             say('close')
             faceIsTooClose = True
-        sendRobotDriveCommand('backward',fwdBakSpeed)
+        sendRobotDriveCommand('backward',leftSpeed, rightSpeed)
         lastTimeMoved = time.time()
     elif faceWidth < maxDist and deltaLastTimeMoved > loopDelay:
         faceJustFine  = False
         if not faceIsTooFar:
             say('far')
             faceIsTooFar = True
-        sendRobotDriveCommand('forward',fwdBakSpeed)
+        sendRobotDriveCommand('forward',leftSpeed, rightSpeed)
         lastTimeMoved = time.time()
     elif faceWidth >= maxDist and w<=minDist:
         faceIsTooClose = False
@@ -631,16 +628,16 @@ def getVisionMessagingCommandIfAnyAndExecute():
                 initialize()
                 tellMessagingThatVisionControlIsReadyForNewCommand()
             elif command == 'forward':
-                sendRobotDriveCommand('forward',fwdBakSpeed)
+                sendRobotDriveCommand('forward',leftSpeed, rightSpeed)
                 tellMessagingThatVisionControlIsReadyForNewCommand()
             elif command == 'backward':
-                sendRobotDriveCommand('backward',fwdBakSpeed)
+                sendRobotDriveCommand('backward',leftSpeed, rightSpeed)
                 tellMessagingThatVisionControlIsReadyForNewCommand()
             elif command == 'left':
-                sendRobotDriveCommand('left',fwdBakSpeed)
+                sendRobotDriveCommand('left',leftSpeed, rightSpeed)
                 tellMessagingThatVisionControlIsReadyForNewCommand()
             elif command == 'right':
-                sendRobotDriveCommand('right',fwdBakSpeed)
+                sendRobotDriveCommand('right',leftSpeed, rightSpeed)
                 tellMessagingThatVisionControlIsReadyForNewCommand()
             elif command == 'come.here':
                 comeHere = True
@@ -767,27 +764,30 @@ if cap.isOpened:
             #continue
 
         if not tooManyFaces:
-            print('')
-            print('')
-            print('')
-            print(faces)
-            print('')
-            print('')
-            print('')
+            #print('')
+            #print('')
+            #print('')
+            #print(faces)
+            #print('')
+            #print('')
+            #print('')
             for (x, y, w, h) in faces:
 
                 faceWidth = w
 
                 leftEdge = x
-                rightEdge = frameWidth - (x + w)
+                rightEdge = x + w
+                centerLine = frameWidth/2
 
-                deltaLeftRight = abs(leftEdge - rightEdge)
+                #deltaLeftRight = abs(leftEdge - rightEdge)
 
                 deltaLastTimeMoved = time.time() - lastTimeMoved
 
-                print('lr:',deltaLeftRight,'fw:',faceWidth,'lft:',leftEdge,'rht:',rightEdge)
+                #print('lr:',deltaLeftRight,'fw:',faceWidth,'lft:',leftEdge,'rht:',rightEdge)
+                print('width:',faceWidth, 'leftEdge:',leftEdge,'rightEdge:',rightEdge)
 
-                getFaceIsLeftOrRightOrCentered(deltaLeftRight)
+                #getIsFaceLeftOrRightOrCentered(deltaLeftRight)
+                getIsFaceLeftOrRightOrCentered(centerLine, leftEdge, rightEdge)
 
                 getIsFaceTooCloseOrTooFarOrJustFine()
 
@@ -795,8 +795,10 @@ if cap.isOpened:
                     if not robotIsReadyToDrive:
                         robotIsReadyToDrive = initRobotDrive()
                     if robotIsReadyToDrive:
-                        moveForwardOrBackForCorrectDistanceAway()
-                        moveLeftOrRightToCenterOnFace(deltaLastTimeMoved, deltaLeftRight, leftEdge, rightEdge)
+                        if not moveLeftOrRightToCenterOnFace(deltaLastTimeMoved):
+                            moveForwardOrBackForCorrectDistanceAway(deltaLastTimeMoved)
+                        #moveLeftOrRightToCenterOnFace(deltaLastTimeMoved)
+                        #moveForwardOrBackForCorrectDistanceAway(deltaLastTimeMoved)
  
 else:
     print("Failed to open capture device")

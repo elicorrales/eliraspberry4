@@ -5,7 +5,7 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //let ipAddress='10.0.0.58';
 let ipAddress='10.0.0.173';
-let ipAddress2='192.168.1.3';
+let ipAddress2='192.168.1.5';
 let currIpAddress = ipAddress;
 let haveReachedRaspberryNodeJsServerAtLeastOneTime = false;
 let haveTriedToReachRaspberryNodeJsServerAtLeastThisManyTimes = 0;
